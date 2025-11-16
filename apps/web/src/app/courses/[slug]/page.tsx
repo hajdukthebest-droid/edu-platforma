@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CourseReviews } from '@/components/CourseReviews'
 import api from '@/lib/api'
 import { formatCurrency } from '@/lib/utils'
 import { Clock, Users, Award, BookOpen } from 'lucide-react'
@@ -146,6 +147,9 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                 </CardContent>
               </Card>
             )}
+
+            {/* Reviews */}
+            <CourseReviews courseId={course.id} />
           </div>
 
           {/* Sidebar */}
