@@ -18,6 +18,7 @@ import profileRoutes from './profileRoutes'
 import uploadRoutes from './uploadRoutes'
 import messageRoutes from './messageRoutes'
 import paymentRoutes from './paymentRoutes'
+import recommendationRoutes from './recommendationRoutes'
 
 const router = Router()
 
@@ -42,6 +43,7 @@ router.use('/', bookmarkRoutes)
 router.use('/', profileRoutes)
 router.use('/upload', uploadRoutes)
 router.use('/messages', messageRoutes)
+router.use('/recommendations', recommendationRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -70,6 +72,7 @@ router.get('/', (req, res) => {
       upload: '/api/upload',
       messages: '/api/messages',
       payments: '/api/payments',
+      recommendations: '/api/recommendations',
     },
   })
 })
