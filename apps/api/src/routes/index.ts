@@ -20,6 +20,7 @@ import messageRoutes from './messageRoutes'
 import paymentRoutes from './paymentRoutes'
 import recommendationRoutes from './recommendationRoutes'
 import domainRoutes from './domainRoutes'
+import searchRoutes from './searchRoutes'
 
 const router = Router()
 
@@ -46,6 +47,7 @@ router.use('/', profileRoutes)
 router.use('/upload', uploadRoutes)
 router.use('/messages', messageRoutes)
 router.use('/recommendations', recommendationRoutes)
+router.use('/search', searchRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -76,6 +78,7 @@ router.get('/', (req, res) => {
       messages: '/api/messages',
       payments: '/api/payments',
       recommendations: '/api/recommendations',
+      search: '/api/search',
     },
   })
 })
