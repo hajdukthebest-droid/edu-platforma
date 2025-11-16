@@ -17,8 +17,12 @@ import bookmarkRoutes from './bookmarkRoutes'
 import profileRoutes from './profileRoutes'
 import uploadRoutes from './uploadRoutes'
 import messageRoutes from './messageRoutes'
+import paymentRoutes from './paymentRoutes'
 
 const router = Router()
+
+// Payment routes (must be before body parsing middleware for webhooks)
+router.use('/payments', paymentRoutes)
 
 router.use('/auth', authRoutes)
 router.use('/courses', courseRoutes)
@@ -65,6 +69,7 @@ router.get('/', (req, res) => {
       profile: '/api/profile/:username',
       upload: '/api/upload',
       messages: '/api/messages',
+      payments: '/api/payments',
     },
   })
 })
