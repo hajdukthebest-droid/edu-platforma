@@ -12,6 +12,9 @@ import reviewRoutes from './reviewRoutes'
 import adminRoutes from './adminRoutes'
 import learningPathRoutes from './learningPathRoutes'
 import achievementRoutes from './achievementRoutes'
+import noteRoutes from './noteRoutes'
+import bookmarkRoutes from './bookmarkRoutes'
+import profileRoutes from './profileRoutes'
 
 const router = Router()
 
@@ -28,6 +31,9 @@ router.use('/admin', adminRoutes)
 router.use('/learning-paths', learningPathRoutes)
 router.use('/', achievementRoutes)
 router.use('/', reviewRoutes)
+router.use('/', noteRoutes)
+router.use('/', bookmarkRoutes)
+router.use('/', profileRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -50,6 +56,9 @@ router.get('/', (req, res) => {
       learningPaths: '/api/learning-paths',
       achievements: '/api/achievements',
       badges: '/api/badges',
+      notes: '/api/notes',
+      bookmarks: '/api/bookmarks',
+      profile: '/api/profile/:username',
     },
   })
 })

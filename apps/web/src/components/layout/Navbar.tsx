@@ -16,6 +16,8 @@ import {
   LogOut,
   LayoutDashboard,
   FileQuestion,
+  FileText,
+  Bookmark,
 } from 'lucide-react'
 
 export function Navbar() {
@@ -52,6 +54,8 @@ export function Navbar() {
     ...(user
       ? [
           { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+          { name: 'Bilješke', href: '/notes', icon: FileText },
+          { name: 'Oznake', href: '/bookmarks', icon: Bookmark },
           { name: 'Certifikati', href: '/certificates', icon: Award },
         ]
       : []),
