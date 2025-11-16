@@ -1,4 +1,5 @@
 import express, { Express, Request, Response, NextFunction } from 'express'
+import { createServer } from 'http'
 import cors from 'cors'
 import helmet from 'helmet'
 import compression from 'compression'
@@ -8,8 +9,10 @@ import { env } from './config/env'
 import { errorHandler } from './middleware/errorHandler'
 import { notFoundHandler } from './middleware/notFoundHandler'
 import routes from './routes'
+import { socketService } from './services/socketService'
 
 const app: Express = express()
+const httpServer = createServer(app)
 
 // Security middleware
 app.use(helmet())
@@ -57,13 +60,17 @@ app.use(errorHandler)
 
 const PORT = parseInt(env.PORT, 10)
 
-app.listen(PORT, '0.0.0.0', () => {
+// Initialize Socket.IO
+socketService.initialize(httpServer)
+
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`
   🚀 Server is running!
 
   🔗 API URL: ${env.API_URL}
   📝 Environment: ${env.NODE_ENV}
   🔌 Port: ${PORT}
+  🔌 Socket.IO: enabled
 
   Health check: ${env.API_URL}/health
   `)

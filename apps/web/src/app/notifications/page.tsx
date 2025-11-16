@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -10,6 +10,7 @@ import api from '@/lib/api'
 import { Bell, Check, CheckCheck, Trash2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+import { useSocket, useNewNotification } from '@/contexts/SocketContext'
 
 interface Notification {
   id: string
@@ -25,6 +26,7 @@ export default function NotificationsPage() {
   const router = useRouter()
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const { markNotificationAsRead, markAllNotificationsAsRead } = useSocket()
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
 
   const { data, isLoading } = useQuery({
@@ -36,8 +38,30 @@ export default function NotificationsPage() {
     },
   })
 
+  // Handle new notification from socket
+  const handleNewNotification = useCallback((notification: any) => {
+    // Play notification sound (optional)
+    // new Audio('/notification-sound.mp3').play().catch(() => {})
+
+    // Invalidate queries to refresh the list
+    queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+
+    // Show browser notification if permitted
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(notification.message, {
+        icon: '/logo.png',
+        badge: '/logo.png',
+      })
+    }
+  }, [queryClient])
+
+  // Subscribe to new notifications
+  useNewNotification(handleNewNotification)
+
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
+      markNotificationAsRead(notificationId)
       await api.post(`/notifications/${notificationId}/read`)
     },
     onSuccess: () => {
@@ -48,6 +72,7 @@ export default function NotificationsPage() {
 
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
+      markAllNotificationsAsRead()
       await api.post('/notifications/mark-all-read')
     },
     onSuccess: () => {

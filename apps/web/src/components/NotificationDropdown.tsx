@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { Bell, Check, X } from 'lucide-react'
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import api from '@/lib/api'
 import { formatDate } from '@/lib/utils'
+import { useSocket, useNewNotification } from '@/contexts/SocketContext'
 
 interface Notification {
   id: string
@@ -22,6 +23,7 @@ interface Notification {
 export function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false)
   const queryClient = useQueryClient()
+  const { markNotificationAsRead, markAllNotificationsAsRead } = useSocket()
 
   const { data: unreadCount } = useQuery({
     queryKey: ['notifications-unread-count'],
@@ -29,7 +31,6 @@ export function NotificationDropdown() {
       const response = await api.get('/notifications/unread-count')
       return response.data.data.count
     },
-    refetchInterval: 30000, // Refetch every 30 seconds
   })
 
   const { data: notifications } = useQuery({
@@ -41,8 +42,20 @@ export function NotificationDropdown() {
     enabled: isOpen,
   })
 
+  // Handle new notification from socket
+  const handleNewNotification = useCallback((notification: any) => {
+    // Invalidate queries to refresh badge and list
+    queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+    queryClient.invalidateQueries({ queryKey: ['notifications-recent'] })
+    queryClient.invalidateQueries({ queryKey: ['notifications'] })
+  }, [queryClient])
+
+  // Subscribe to new notifications
+  useNewNotification(handleNewNotification)
+
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
+      markNotificationAsRead(notificationId)
       await api.post(`/notifications/${notificationId}/read`)
     },
     onSuccess: () => {
@@ -53,6 +66,7 @@ export function NotificationDropdown() {
 
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
+      markAllNotificationsAsRead()
       await api.post('/notifications/mark-all-read')
     },
     onSuccess: () => {

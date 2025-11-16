@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,16 +16,23 @@ import {
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+import { useSocket, useNewMessage, useTypingStatus, useConversationRead } from '@/contexts/SocketContext'
 import Link from 'next/link'
 
 export default function MessagesPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const { isConnected, sendMessage, sendTyping, joinConversation, markConversationAsRead } = useSocket()
   const [selectedConversation, setSelectedConversation] = useState<any>(null)
   const [messageText, setMessageText] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [isTyping, setIsTyping] = useState(false)
+  const [otherUserTyping, setOtherUserTyping] = useState(false)
+  const [isSending, setIsSending] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Fetch conversations
+  // Fetch conversations (no polling, updated via socket)
   const { data: conversationsData, isLoading: loadingConversations } = useQuery({
     queryKey: ['conversations'],
     queryFn: async () => {
@@ -33,10 +40,9 @@ export default function MessagesPage() {
       return response.data.data
     },
     enabled: !!user,
-    refetchInterval: 5000, // Refresh every 5 seconds
   })
 
-  // Fetch messages for selected conversation
+  // Fetch messages for selected conversation (no polling, updated via socket)
   const { data: messagesData, isLoading: loadingMessages } = useQuery({
     queryKey: ['messages', selectedConversation?.id],
     queryFn: async () => {
@@ -46,45 +52,100 @@ export default function MessagesPage() {
       return response.data.data
     },
     enabled: !!selectedConversation,
-    refetchInterval: 3000, // Refresh every 3 seconds
   })
 
-  // Send message mutation
-  const sendMessageMutation = useMutation({
-    mutationFn: async (content: string) => {
-      await api.post(
-        `/messages/conversations/${selectedConversation.id}/messages`,
-        { content }
-      )
-    },
-    onSuccess: () => {
-      setMessageText('')
-      queryClient.invalidateQueries({ queryKey: ['messages', selectedConversation?.id] })
-      queryClient.invalidateQueries({ queryKey: ['conversations'] })
-    },
-  })
+  // Handle new message from socket
+  const handleNewMessage = useCallback((message: any) => {
+    const conversationId = message.conversationId
 
-  // Mark as read mutation
-  const markAsReadMutation = useMutation({
-    mutationFn: async (conversationId: string) => {
-      await api.post(`/messages/conversations/${conversationId}/read`)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] })
-    },
-  })
+    // Update messages list if this conversation is selected
+    queryClient.setQueryData(['messages', conversationId], (oldData: any) => {
+      if (!oldData) return oldData
+      return {
+        ...oldData,
+        messages: [...(oldData.messages || []), message],
+      }
+    })
+
+    // Update conversations list
+    queryClient.invalidateQueries({ queryKey: ['conversations'] })
+
+    // Scroll to bottom
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+  }, [queryClient])
+
+  // Handle typing status from socket
+  const handleTypingStatus = useCallback((data: { conversationId: string; userId: string; isTyping: boolean }) => {
+    if (selectedConversation?.id === data.conversationId && data.userId !== user?.id) {
+      setOtherUserTyping(data.isTyping)
+    }
+  }, [selectedConversation, user])
+
+  // Handle conversation read from socket
+  const handleConversationRead = useCallback((data: { conversationId: string; userId: string }) => {
+    queryClient.invalidateQueries({ queryKey: ['conversations'] })
+  }, [queryClient])
+
+  // Subscribe to socket events
+  useNewMessage(handleNewMessage)
+  useTypingStatus(handleTypingStatus)
+  useConversationRead(handleConversationRead)
+
+  // Join conversation room when selected
+  useEffect(() => {
+    if (selectedConversation && isConnected) {
+      joinConversation(selectedConversation.id)
+    }
+  }, [selectedConversation, isConnected, joinConversation])
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messagesData])
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault()
-    if (messageText.trim() && selectedConversation) {
-      sendMessageMutation.mutate(messageText)
+    if (messageText.trim() && selectedConversation && isConnected) {
+      setIsSending(true)
+      sendMessage(selectedConversation.id, messageText)
+      setMessageText('')
+      setIsSending(false)
+
+      // Stop typing indicator
+      if (isTyping) {
+        sendTyping(selectedConversation.id, false)
+        setIsTyping(false)
+      }
     }
   }
 
   const handleSelectConversation = (conversation: any) => {
     setSelectedConversation(conversation)
-    if (conversation.unreadCount > 0) {
-      markAsReadMutation.mutate(conversation.id)
+    if (conversation.unreadCount > 0 && isConnected) {
+      markConversationAsRead(conversation.id)
+    }
+  }
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessageText(e.target.value)
+
+    // Send typing indicator
+    if (selectedConversation && isConnected) {
+      if (!isTyping) {
+        sendTyping(selectedConversation.id, true)
+        setIsTyping(true)
+      }
+
+      // Clear previous timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
+
+      // Stop typing after 2 seconds of inactivity
+      typingTimeoutRef.current = setTimeout(() => {
+        sendTyping(selectedConversation.id, false)
+        setIsTyping(false)
+      }, 2000)
     }
   }
 
@@ -290,6 +351,19 @@ export default function MessagesPage() {
                             </div>
                           )
                         })}
+                        <div ref={messagesEndRef} />
+                      </div>
+                    )}
+
+                    {/* Typing indicator */}
+                    {otherUserTyping && (
+                      <div className="flex items-center gap-2 text-gray-500 text-sm mt-2">
+                        <div className="flex gap-1">
+                          <span className="animate-bounce" style={{ animationDelay: '0ms' }}>●</span>
+                          <span className="animate-bounce" style={{ animationDelay: '150ms' }}>●</span>
+                          <span className="animate-bounce" style={{ animationDelay: '300ms' }}>●</span>
+                        </div>
+                        <span>{selectedConversation.otherParticipant.firstName} piše...</span>
                       </div>
                     )}
                   </CardContent>
@@ -300,7 +374,7 @@ export default function MessagesPage() {
                       <Textarea
                         placeholder="Napišite poruku..."
                         value={messageText}
-                        onChange={(e) => setMessageText(e.target.value)}
+                        onChange={handleTextChange}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault()
@@ -308,19 +382,25 @@ export default function MessagesPage() {
                           }
                         }}
                         className="flex-1 min-h-[60px] max-h-[120px] resize-none"
+                        disabled={!isConnected}
                       />
                       <Button
                         type="submit"
-                        disabled={!messageText.trim() || sendMessageMutation.isPending}
+                        disabled={!messageText.trim() || isSending || !isConnected}
                         className="self-end"
                       >
-                        {sendMessageMutation.isPending ? (
+                        {isSending ? (
                           <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
                           <Send className="h-5 w-5" />
                         )}
                       </Button>
                     </form>
+                    {!isConnected && (
+                      <p className="text-xs text-orange-600 mt-2">
+                        Povezivanje s serverom...
+                      </p>
+                    )}
                   </div>
                 </>
               ) : (
