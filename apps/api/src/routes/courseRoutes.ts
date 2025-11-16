@@ -7,6 +7,7 @@ const router = Router()
 
 // Public routes
 router.get('/', courseController.getCourses.bind(courseController))
+router.get('/filters/options', courseController.getFilterOptions.bind(courseController))
 router.get('/:id', courseController.getCourseById.bind(courseController))
 router.get('/slug/:slug', courseController.getCourseBySlug.bind(courseController))
 

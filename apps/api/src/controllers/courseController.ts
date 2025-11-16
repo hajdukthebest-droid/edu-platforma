@@ -36,6 +36,19 @@ export class CourseController {
     }
   }
 
+  async getFilterOptions(req: Request, res: Response, next: NextFunction) {
+    try {
+      const options = await courseService.getFilterOptions()
+
+      res.json({
+        status: 'success',
+        data: options,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
   async getCourseById(req: Request, res: Response, next: NextFunction) {
     try {
       const course = await courseService.getCourseById(req.params.id)

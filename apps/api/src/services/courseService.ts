@@ -20,9 +20,67 @@ interface GetCoursesQuery {
   category?: string
   level?: CourseLevel
   status?: CourseStatus
+  minPrice?: number
+  maxPrice?: number
+  minRating?: number
+  language?: string
+  minDuration?: number
+  maxDuration?: number
+  sortBy?: 'createdAt' | 'price' | 'enrollmentCount' | 'rating'
+  sortOrder?: 'asc' | 'desc'
+  isFree?: boolean
 }
 
 export class CourseService {
+  async getFilterOptions() {
+    const [categories, levels, languages, priceStats] = await Promise.all([
+      prisma.courseCategory.findMany({
+        orderBy: { name: 'asc' },
+        include: {
+          _count: {
+            select: {
+              courses: true,
+            },
+          },
+        },
+      }),
+      prisma.course.groupBy({
+        by: ['level'],
+        _count: true,
+      }),
+      prisma.course.findMany({
+        where: {
+          language: { not: null },
+        },
+        select: {
+          language: true,
+        },
+        distinct: ['language'],
+      }),
+      prisma.course.aggregate({
+        _min: { price: true },
+        _max: { price: true },
+      }),
+    ])
+
+    const uniqueLanguages = Array.from(
+      new Set(languages.map((l) => l.language).filter(Boolean))
+    )
+
+    return {
+      categories,
+      levels: levels.map((l) => ({
+        value: l.level,
+        count: l._count,
+      })),
+      languages: uniqueLanguages,
+      priceRange: {
+        min: priceStats._min.price ? Number(priceStats._min.price) : 0,
+        max: priceStats._max.price ? Number(priceStats._max.price) : 0,
+      },
+    }
+  }
+
   async createCourse(data: CreateCourseData) {
     const course = await prisma.course.create({
       data: {
@@ -46,7 +104,23 @@ export class CourseService {
   }
 
   async getCourses(query: GetCoursesQuery = {}) {
-    const { page = 1, limit = 20, search, category, level, status } = query
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      category,
+      level,
+      status,
+      minPrice,
+      maxPrice,
+      minRating,
+      language,
+      minDuration,
+      maxDuration,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      isFree,
+    } = query
 
     const where: Prisma.CourseWhereInput = {
       ...(search && {
@@ -58,13 +132,33 @@ export class CourseService {
       ...(category && { categoryId: category }),
       ...(level && { level }),
       ...(status && { status }),
+      ...(language && { language }),
+      ...(isFree !== undefined && {
+        price: isFree ? 0 : { gt: 0 },
+      }),
+      ...(minPrice !== undefined && {
+        price: { gte: minPrice },
+      }),
+      ...(maxPrice !== undefined && {
+        price: { lte: maxPrice },
+      }),
+      ...(minDuration !== undefined && {
+        durationHours: { gte: minDuration },
+      }),
+      ...(maxDuration !== undefined && {
+        durationHours: { lte: maxDuration },
+      }),
     }
 
-    const [courses, total] = await Promise.all([
+    // Build orderBy clause
+    let orderBy: any = { [sortBy]: sortOrder }
+    if (sortBy === 'rating') {
+      orderBy = { averageRating: sortOrder }
+    }
+
+    const [allCourses, total] = await Promise.all([
       prisma.course.findMany({
         where,
-        skip: (page - 1) * limit,
-        take: limit,
         include: {
           creator: {
             select: {
@@ -75,6 +169,11 @@ export class CourseService {
             },
           },
           category: true,
+          reviews: {
+            select: {
+              rating: true,
+            },
+          },
           _count: {
             select: {
               enrollments: true,
@@ -82,18 +181,38 @@ export class CourseService {
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy,
       }),
       prisma.course.count({ where }),
     ])
 
+    // Filter by rating if needed and calculate average rating
+    let courses = allCourses.map((course) => {
+      const totalRating = course.reviews.reduce((sum, review) => sum + review.rating, 0)
+      const avgRating = course.reviews.length > 0 ? totalRating / course.reviews.length : 0
+
+      return {
+        ...course,
+        averageRating: avgRating,
+        reviews: undefined, // Remove reviews array from response
+      }
+    })
+
+    if (minRating !== undefined) {
+      courses = courses.filter((course) => course.averageRating >= minRating)
+    }
+
+    // Apply pagination after filtering
+    const paginatedCourses = courses.slice((page - 1) * limit, page * limit)
+    const filteredTotal = courses.length
+
     return {
-      courses,
+      courses: paginatedCourses,
       pagination: {
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+        total: filteredTotal,
+        totalPages: Math.ceil(filteredTotal / limit),
       },
     }
   }
