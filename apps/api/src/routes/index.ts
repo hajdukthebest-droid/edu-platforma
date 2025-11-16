@@ -5,6 +5,7 @@ import assessmentRoutes from './assessmentRoutes'
 import certificateRoutes from './certificateRoutes'
 import progressRoutes from './progressRoutes'
 import instructorRoutes from './instructorRoutes'
+import instructorAnalyticsRoutes from './instructorAnalyticsRoutes'
 import leaderboardRoutes from './leaderboardRoutes'
 import forumRoutes from './forumRoutes'
 import notificationRoutes from './notificationRoutes'
@@ -34,6 +35,7 @@ router.use('/assessments', assessmentRoutes)
 router.use('/certificates', certificateRoutes)
 router.use('/progress', progressRoutes)
 router.use('/instructor', instructorRoutes)
+router.use('/instructor/analytics', instructorAnalyticsRoutes)
 router.use('/leaderboard', leaderboardRoutes)
 router.use('/forum', forumRoutes)
 router.use('/notifications', notificationRoutes)
