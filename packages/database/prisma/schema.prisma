@@ -68,6 +68,7 @@ model User {
   learningPace      LearningPace?
   preferredLanguage String         @default("hr")
   timezone          String         @default("Europe/Zagreb")
+  preferredDomains  String[]       @default([]) // User's preferred learning domains
 
   // Gamification
   totalPoints       Int            @default(0)
@@ -174,19 +175,41 @@ enum CourseStatus {
   ARCHIVED
 }
 
+// Domain represents main industry/field (IT, Healthcare, Business, etc.)
+model Domain {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  slug        String     @unique
+  description String?
+  icon        String?    // Icon/emoji for the domain
+  color       String?    // Brand color for the domain
+  coverImage  String?    // Cover image for domain landing page
+  order       Int        @default(0) // Display order
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  categories  Category[]
+
+  @@map("domains")
+}
+
 model Category {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   name        String
-  slug        String   @unique
+  slug        String     @unique
   description String?
   icon        String?
+  domainId    String?    // Link to parent domain
+  domain      Domain?    @relation(fields: [domainId], references: [id], onDelete: SetNull)
   parentId    String?
-  parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children    Category[] @relation("CategoryHierarchy")
   courses     Course[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
+  @@index([domainId])
   @@map("categories")
 }
 

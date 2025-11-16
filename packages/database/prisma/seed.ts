@@ -1,10 +1,15 @@
 import { PrismaClient, UserRole, CourseLevel, CourseStatus } from '@prisma/client'
 import * as bcrypt from 'bcryptjs'
+import { seedDomains } from './seeds/domains'
 
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 Seeding database...')
+  console.log('🌱 Seeding database...\n')
+
+  // Seed domains and categories first
+  await seedDomains()
+  console.log('')
 
   // Create admin user
   const adminPassword = await bcrypt.hash('admin123', 10)

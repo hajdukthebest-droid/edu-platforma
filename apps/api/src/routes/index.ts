@@ -19,6 +19,7 @@ import uploadRoutes from './uploadRoutes'
 import messageRoutes from './messageRoutes'
 import paymentRoutes from './paymentRoutes'
 import recommendationRoutes from './recommendationRoutes'
+import domainRoutes from './domainRoutes'
 
 const router = Router()
 
@@ -26,6 +27,7 @@ const router = Router()
 router.use('/payments', paymentRoutes)
 
 router.use('/auth', authRoutes)
+router.use('/domains', domainRoutes)
 router.use('/courses', courseRoutes)
 router.use('/assessments', assessmentRoutes)
 router.use('/certificates', certificateRoutes)
@@ -50,9 +52,10 @@ router.get('/', (req, res) => {
   res.json({
     name: 'Edu Platforma API',
     version: '1.0.0',
-    description: 'Premium e-learning platforma za farmaceutsku i zdravstvenu industriju',
+    description: 'Sveobuhvatna multi-domain e-learning platforma',
     endpoints: {
       auth: '/api/auth',
+      domains: '/api/domains',
       courses: '/api/courses',
       assessments: '/api/assessments',
       certificates: '/api/certificates',
