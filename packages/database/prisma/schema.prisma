@@ -101,6 +101,7 @@ model User {
   achievements      UserAchievement[]
   forumPosts        ForumPost[]
   forumComments     ForumComment[]
+  forumVotes        ForumVote[]
   reviews           Review[]
   notes             Note[]
   bookmarks         Bookmark[]
@@ -674,10 +675,20 @@ model ForumPost {
   categoryId  String
   authorId    String
 
+  // Q&A Context
+  courseId    String?       // Link to course for course discussions
+  lessonId    String?       // Link to lesson for lesson-specific questions
+
   title       String
   content     String
+  tags        String[]      @default([]) // Tags for better organization
+
   isPinned    Boolean       @default(false)
   isLocked    Boolean       @default(false)
+
+  // Q&A Features
+  isSolved    Boolean       @default(false) // Has an accepted answer
+  bestAnswerId String?      // The comment marked as best answer
 
   viewCount   Int           @default(0)
   upvotes     Int           @default(0)
@@ -686,10 +697,14 @@ model ForumPost {
   category    ForumCategory @relation(fields: [categoryId], references: [id])
   author      User          @relation(fields: [authorId], references: [id])
   comments    ForumComment[]
+  votes       ForumVote[]
 
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
+  @@index([courseId])
+  @@index([lessonId])
+  @@index([isSolved])
   @@map("forum_posts")
 }
 
@@ -698,17 +713,59 @@ model ForumComment {
   postId      String
   authorId    String
 
+  // Threading support
+  parentCommentId String? // For nested replies
+  parentComment   ForumComment?  @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         ForumComment[] @relation("CommentReplies")
+
   content     String
   upvotes     Int      @default(0)
   downvotes   Int      @default(0)
 
+  // Q&A Features
+  isBestAnswer Boolean @default(false) // Marked as best answer by post author
+
   post        ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   author      User      @relation(fields: [authorId], references: [id])
+  votes       ForumVote[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@index([postId])
+  @@index([parentCommentId])
   @@map("forum_comments")
+}
+
+enum VoteType {
+  UP
+  DOWN
+}
+
+model ForumVote {
+  id        String   @id @default(cuid())
+  userId    String
+
+  // Either postId or commentId will be set
+  postId    String?
+  commentId String?
+
+  voteType  VoteType
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      ForumPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment   ForumComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Prevent duplicate votes - user can only vote once per post or comment
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
+  @@index([userId])
+  @@index([postId])
+  @@index([commentId])
+  @@map("forum_votes")
 }
 
 model Review {

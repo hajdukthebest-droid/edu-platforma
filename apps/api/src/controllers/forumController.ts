@@ -23,7 +23,22 @@ export class ForumController {
       const page = parseInt(req.query.page as string) || 1
       const limit = parseInt(req.query.limit as string) || 20
 
-      const result = await forumService.getPosts(categoryId, search, page, limit)
+      // New query parameters
+      const courseId = req.query.courseId as string
+      const lessonId = req.query.lessonId as string
+      const tags = req.query.tags ? (req.query.tags as string).split(',') : undefined
+      const isSolved = req.query.isSolved
+        ? req.query.isSolved === 'true'
+        : undefined
+      const sortBy = req.query.sortBy as 'recent' | 'popular' | 'unanswered'
+
+      const result = await forumService.getPosts(categoryId, search, page, limit, {
+        courseId,
+        lessonId,
+        tags,
+        isSolved,
+        sortBy,
+      })
 
       res.json({
         status: 'success',
@@ -34,9 +49,11 @@ export class ForumController {
     }
   }
 
-  async getPostById(req: Request, res: Response, next: NextFunction) {
+  async getPostById(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const post = await forumService.getPostById(req.params.id)
+      // Pass userId if authenticated (for vote tracking)
+      const userId = req.user?.id
+      const post = await forumService.getPostById(req.params.id, userId)
 
       res.json({
         status: 'success',
@@ -116,34 +133,65 @@ export class ForumController {
     }
   }
 
-  async upvotePost(req: AuthRequest, res: Response, next: NextFunction) {
+  // NEW: Toggle vote (upvote/downvote with duplicate prevention)
+  async vote(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       if (!req.user) {
         return res.status(401).json({ status: 'error', message: 'Unauthorized' })
       }
 
-      await forumService.upvotePost(req.params.id, req.user.id)
+      const { voteType, postId, commentId } = req.body
+
+      if (!voteType || (voteType !== 'UP' && voteType !== 'DOWN')) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'voteType must be UP or DOWN',
+        })
+      }
+
+      const result = await forumService.toggleVote(req.user.id, voteType, {
+        postId,
+        commentId,
+      })
 
       res.json({
         status: 'success',
-        message: 'Post upvoted',
+        data: result,
       })
     } catch (error) {
       next(error)
     }
   }
 
-  async upvoteComment(req: AuthRequest, res: Response, next: NextFunction) {
+  // Mark comment as best answer
+  async markBestAnswer(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       if (!req.user) {
         return res.status(401).json({ status: 'error', message: 'Unauthorized' })
       }
 
-      await forumService.upvoteComment(req.params.commentId, req.user.id)
+      const { postId, commentId } = req.body
+
+      await forumService.markBestAnswer(postId, commentId, req.user.id)
 
       res.json({
         status: 'success',
-        message: 'Comment upvoted',
+        message: 'Comment marked as best answer',
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  // Get popular tags
+  async getPopularTags(req: Request, res: Response, next: NextFunction) {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20
+      const tags = await forumService.getPopularTags(limit)
+
+      res.json({
+        status: 'success',
+        data: tags,
       })
     } catch (error) {
       next(error)

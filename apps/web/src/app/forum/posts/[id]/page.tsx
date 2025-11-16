@@ -8,9 +8,39 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import api from '@/lib/api'
-import { ThumbsUp, MessageSquare, Eye, ArrowLeft, Send, Trash2, Edit } from 'lucide-react'
+import {
+  ThumbsUp,
+  ThumbsDown,
+  MessageSquare,
+  Eye,
+  ArrowLeft,
+  Send,
+  Trash2,
+  Edit,
+  CheckCircle2,
+  Award,
+  Tag,
+  CornerDownRight,
+} from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+
+interface Comment {
+  id: string
+  content: string
+  upvotes: number
+  downvotes: number
+  isBestAnswer: boolean
+  createdAt: string
+  author: {
+    id: string
+    firstName: string
+    lastName: string
+    avatar?: string
+  }
+  userVote?: 'UP' | 'DOWN'
+  replies?: Comment[]
+}
 
 export default function ForumPostPage() {
   const params = useParams()
@@ -18,6 +48,8 @@ export default function ForumPostPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [commentContent, setCommentContent] = useState('')
+  const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  const [replyContent, setReplyContent] = useState('')
 
   const { data: post, isLoading } = useQuery({
     queryKey: ['forum-post', params.id],
@@ -27,18 +59,17 @@ export default function ForumPostPage() {
     },
   })
 
-  const upvotePostMutation = useMutation({
-    mutationFn: async () => {
-      await api.post(`/forum/posts/${params.id}/upvote`)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['forum-post', params.id] })
-    },
-  })
-
-  const upvoteCommentMutation = useMutation({
-    mutationFn: async (commentId: string) => {
-      await api.post(`/forum/comments/${commentId}/upvote`)
+  const voteMutation = useMutation({
+    mutationFn: async ({
+      voteType,
+      postId,
+      commentId,
+    }: {
+      voteType: 'UP' | 'DOWN'
+      postId?: string
+      commentId?: string
+    }) => {
+      await api.post('/forum/vote', { voteType, postId, commentId })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['forum-post', params.id] })
@@ -46,11 +77,22 @@ export default function ForumPostPage() {
   })
 
   const createCommentMutation = useMutation({
-    mutationFn: async (content: string) => {
-      await api.post(`/forum/posts/${params.id}/comments`, { content })
+    mutationFn: async (data: { content: string; parentCommentId?: string }) => {
+      await api.post(`/forum/posts/${params.id}/comments`, data)
     },
     onSuccess: () => {
       setCommentContent('')
+      setReplyContent('')
+      setReplyingTo(null)
+      queryClient.invalidateQueries({ queryKey: ['forum-post', params.id] })
+    },
+  })
+
+  const markBestAnswerMutation = useMutation({
+    mutationFn: async ({ postId, commentId }: { postId: string; commentId: string }) => {
+      await api.post('/forum/mark-best-answer', { postId, commentId })
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['forum-post', params.id] })
     },
   })
@@ -67,11 +109,173 @@ export default function ForumPostPage() {
   const handleSubmitComment = (e: React.FormEvent) => {
     e.preventDefault()
     if (commentContent.trim()) {
-      createCommentMutation.mutate(commentContent)
+      createCommentMutation.mutate({ content: commentContent })
     }
   }
 
-  const canDeletePost = user && (user.id === post?.author.id || user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')
+  const handleSubmitReply = (parentCommentId: string) => {
+    if (replyContent.trim()) {
+      createCommentMutation.mutate({
+        content: replyContent,
+        parentCommentId,
+      })
+    }
+  }
+
+  const canDeletePost =
+    user &&
+    (user.id === post?.author.id || user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')
+
+  const isPostAuthor = user && post && user.id === post.author.id
+
+  const VoteButtons = ({
+    votes,
+    onVote,
+    userVote,
+    disabled,
+  }: {
+    votes: { up: number; down: number }
+    onVote: (type: 'UP' | 'DOWN') => void
+    userVote?: 'UP' | 'DOWN'
+    disabled?: boolean
+  }) => (
+    <div className="flex flex-col items-center gap-1">
+      <button
+        onClick={() => onVote('UP')}
+        disabled={disabled}
+        className={`p-1 rounded transition-colors ${
+          userVote === 'UP'
+            ? 'text-blue-600 bg-blue-50'
+            : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+        } disabled:opacity-50 disabled:cursor-not-allowed`}
+      >
+        <ThumbsUp className="h-5 w-5" />
+      </button>
+      <span className="font-medium text-sm">{votes.up - votes.down}</span>
+      <button
+        onClick={() => onVote('DOWN')}
+        disabled={disabled}
+        className={`p-1 rounded transition-colors ${
+          userVote === 'DOWN'
+            ? 'text-red-600 bg-red-50'
+            : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
+        } disabled:opacity-50 disabled:cursor-not-allowed`}
+      >
+        <ThumbsDown className="h-5 w-5" />
+      </button>
+    </div>
+  )
+
+  const CommentCard = ({
+    comment,
+    isReply = false,
+  }: {
+    comment: Comment
+    isReply?: boolean
+  }) => (
+    <div className={`${isReply ? 'ml-12 mt-3' : ''}`}>
+      <Card className={comment.isBestAnswer ? 'border-2 border-green-500' : ''}>
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-4">
+            <VoteButtons
+              votes={{ up: comment.upvotes, down: comment.downvotes }}
+              onVote={(type) => voteMutation.mutate({ voteType: type, commentId: comment.id })}
+              userVote={comment.userVote}
+              disabled={!user}
+            />
+
+            <div className="flex-1">
+              {comment.isBestAnswer && (
+                <div className="flex items-center gap-2 mb-3 text-green-600">
+                  <Award className="h-5 w-5" />
+                  <span className="font-semibold text-sm">Najbolji odgovor</span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 mb-3 text-sm">
+                <span className="font-medium">
+                  {comment.author.firstName} {comment.author.lastName}
+                </span>
+                <span className="text-gray-500">•</span>
+                <span className="text-gray-500">{formatDate(comment.createdAt)}</span>
+              </div>
+
+              <p className="text-gray-700 mb-4 whitespace-pre-wrap">{comment.content}</p>
+
+              <div className="flex items-center gap-3">
+                {!isReply && (
+                  <button
+                    onClick={() =>
+                      setReplyingTo(replyingTo === comment.id ? null : comment.id)
+                    }
+                    disabled={!user}
+                    className="text-sm text-gray-600 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    <CornerDownRight className="h-3.5 w-3.5" />
+                    Odgovori
+                  </button>
+                )}
+
+                {isPostAuthor && !comment.isBestAnswer && !isReply && !post.isSolved && (
+                  <button
+                    onClick={() =>
+                      markBestAnswerMutation.mutate({
+                        postId: post.id,
+                        commentId: comment.id,
+                      })
+                    }
+                    className="text-sm text-green-600 hover:text-green-700 transition-colors flex items-center gap-1"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Označi kao rješenje
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Reply Form */}
+      {replyingTo === comment.id && (
+        <div className="ml-12 mt-3">
+          <Card>
+            <CardContent className="pt-6">
+              <Textarea
+                placeholder="Napišite odgovor..."
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                className="mb-4"
+                rows={3}
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setReplyingTo(null)}>
+                  Odustani
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleSubmitReply(comment.id)}
+                  disabled={!replyContent.trim() || createCommentMutation.isPending}
+                >
+                  <Send className="h-3.5 w-3.5 mr-1" />
+                  Odgovori
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Nested Replies */}
+      {comment.replies && comment.replies.length > 0 && (
+        <div className="mt-3 space-y-3">
+          {comment.replies.map((reply) => (
+            <CommentCard key={reply.id} comment={reply} isReply={true} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
 
   if (isLoading) {
     return (
@@ -112,10 +316,16 @@ export default function ForumPostPage() {
         {/* Post */}
         <Card className="mb-6">
           <CardHeader>
-            <div className="flex items-start gap-2 mb-4">
+            <div className="flex items-start gap-2 mb-4 flex-wrap">
               {post.isPinned && (
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded">
                   Prikvačeno
+                </span>
+              )}
+              {post.isSolved && (
+                <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Riješeno
                 </span>
               )}
               <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded">
@@ -124,6 +334,21 @@ export default function ForumPostPage() {
             </div>
 
             <h1 className="text-3xl font-bold mb-4">{post.title}</h1>
+
+            {/* Tags */}
+            {post.tags && post.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {post.tags.map((tag: string) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full"
+                  >
+                    <Tag className="h-3 w-3" />
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
 
             <div className="flex items-center justify-between text-sm text-gray-600">
               <div className="flex items-center gap-3">
@@ -161,22 +386,24 @@ export default function ForumPostPage() {
 
           <CardContent>
             <div className="prose max-w-none mb-6">
-              <p className="whitespace-pre-wrap">{post.content}</p>
+              <p className="whitespace-pre-wrap text-gray-700">{post.content}</p>
             </div>
 
             <div className="flex items-center gap-6 pt-4 border-t">
-              <button
-                onClick={() => user && upvotePostMutation.mutate()}
-                disabled={!user}
-                className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ThumbsUp className="h-5 w-5" />
-                <span className="font-medium">{post.upvotes}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <VoteButtons
+                  votes={{ up: post.upvotes, down: post.downvotes }}
+                  onVote={(type) =>
+                    voteMutation.mutate({ voteType: type, postId: post.id })
+                  }
+                  userVote={post.userVote}
+                  disabled={!user}
+                />
+              </div>
 
               <div className="flex items-center gap-2 text-gray-600">
                 <MessageSquare className="h-5 w-5" />
-                <span className="font-medium">{post._count.comments}</span>
+                <span className="font-medium">{post.comments.length}</span>
               </div>
 
               <div className="flex items-center gap-2 text-gray-600">
@@ -190,7 +417,7 @@ export default function ForumPostPage() {
         {/* Comments */}
         <div className="space-y-4">
           <h2 className="text-xl font-bold">
-            Komentari ({post.comments.length})
+            Odgovori ({post.comments.length})
           </h2>
 
           {/* Comment Form */}
@@ -199,19 +426,21 @@ export default function ForumPostPage() {
               <CardContent className="pt-6">
                 <form onSubmit={handleSubmitComment}>
                   <Textarea
-                    placeholder="Napišite komentar..."
+                    placeholder="Napišite odgovor..."
                     value={commentContent}
-                    onChange={e => setCommentContent(e.target.value)}
+                    onChange={(e) => setCommentContent(e.target.value)}
                     className="mb-4"
                     rows={4}
                   />
                   <div className="flex justify-end">
                     <Button
                       type="submit"
-                      disabled={!commentContent.trim() || createCommentMutation.isPending}
+                      disabled={
+                        !commentContent.trim() || createCommentMutation.isPending
+                      }
                     >
                       <Send className="h-4 w-4 mr-2" />
-                      Objavi komentar
+                      Objavi odgovor
                     </Button>
                   </div>
                 </form>
@@ -220,7 +449,7 @@ export default function ForumPostPage() {
           ) : (
             <Card>
               <CardContent className="py-8 text-center">
-                <p className="text-gray-600 mb-4">Prijavite se da biste komentirali</p>
+                <p className="text-gray-600 mb-4">Prijavite se da biste odgovorili</p>
                 <Button asChild>
                   <Link href="/login">Prijava</Link>
                 </Button>
@@ -233,38 +462,17 @@ export default function ForumPostPage() {
             <Card>
               <CardContent className="py-12 text-center">
                 <MessageSquare className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">Nema komentara. Budite prvi koji će komentirati!</p>
+                <p className="text-gray-600">
+                  Nema odgovora. Budite prvi koji će odgovoriti!
+                </p>
               </CardContent>
             </Card>
           ) : (
-            post.comments.map((comment: any) => (
-              <Card key={comment.id}>
-                <CardContent className="pt-6">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-3 text-sm">
-                        <span className="font-medium">
-                          {comment.author.firstName} {comment.author.lastName}
-                        </span>
-                        <span className="text-gray-500">•</span>
-                        <span className="text-gray-500">{formatDate(comment.createdAt)}</span>
-                      </div>
-
-                      <p className="text-gray-700 mb-4 whitespace-pre-wrap">{comment.content}</p>
-
-                      <button
-                        onClick={() => user && upvoteCommentMutation.mutate(comment.id)}
-                        disabled={!user}
-                        className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <ThumbsUp className="h-4 w-4" />
-                        <span>{comment.upvotes}</span>
-                      </button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+            <div className="space-y-4">
+              {post.comments.map((comment: Comment) => (
+                <CommentCard key={comment.id} comment={comment} />
+              ))}
+            </div>
           )}
         </div>
       </div>
