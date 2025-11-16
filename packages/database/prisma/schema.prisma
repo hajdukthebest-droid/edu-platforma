@@ -266,6 +266,7 @@ model Course {
   reviews           Review[]
   certificates      Certificate[]
   learningPaths     LearningPathCourse[]
+  translations      CourseTranslation[]
 
   // Timestamps
   publishedAt       DateTime?
@@ -286,8 +287,9 @@ model Module {
   orderIndex  Int
   duration    Int?     // minutes
 
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  lessons     Lesson[]
+  course       Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons      Lesson[]
+  translations ModuleTranslation[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -333,10 +335,11 @@ model Lesson {
   isMandatory Boolean    @default(true)
   pointsReward Int       @default(20)
 
-  module      Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  progress    LessonProgress[]
-  notes       Note[]
-  bookmarks   Bookmark[]
+  module       Module              @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress     LessonProgress[]
+  notes        Note[]
+  bookmarks    Bookmark[]
+  translations LessonTranslation[]
 
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -1193,4 +1196,75 @@ model Message {
   @@index([conversationId])
   @@index([senderId])
   @@map("messages")
+}
+
+// ============================================
+// MULTI-LANGUAGE SUPPORT
+// ============================================
+
+enum SupportedLocale {
+  HR // Croatian
+  EN // English
+}
+
+model CourseTranslation {
+  id          String          @id @default(cuid())
+  courseId    String
+  locale      SupportedLocale
+
+  // Translated fields
+  title             String
+  description       String?
+  shortDescription  String?
+  learningObjectives String[]
+  requirements      String[]
+  targetAudience    String?
+
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([courseId, locale])
+  @@index([courseId])
+  @@map("course_translations")
+}
+
+model ModuleTranslation {
+  id          String          @id @default(cuid())
+  moduleId    String
+  locale      SupportedLocale
+
+  // Translated fields
+  title       String
+  description String?
+
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([moduleId, locale])
+  @@index([moduleId])
+  @@map("module_translations")
+}
+
+model LessonTranslation {
+  id          String          @id @default(cuid())
+  lessonId    String
+  locale      SupportedLocale
+
+  // Translated fields
+  title       String
+  description String?
+  content     String?
+
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([lessonId, locale])
+  @@index([lessonId])
+  @@map("lesson_translations")
 }
