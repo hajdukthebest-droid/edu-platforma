@@ -4,6 +4,9 @@ import courseRoutes from './courseRoutes'
 import assessmentRoutes from './assessmentRoutes'
 import certificateRoutes from './certificateRoutes'
 import progressRoutes from './progressRoutes'
+import instructorRoutes from './instructorRoutes'
+import leaderboardRoutes from './leaderboardRoutes'
+import forumRoutes from './forumRoutes'
 
 const router = Router()
 
@@ -12,6 +15,9 @@ router.use('/courses', courseRoutes)
 router.use('/assessments', assessmentRoutes)
 router.use('/certificates', certificateRoutes)
 router.use('/progress', progressRoutes)
+router.use('/instructor', instructorRoutes)
+router.use('/leaderboard', leaderboardRoutes)
+router.use('/forum', forumRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -25,6 +31,9 @@ router.get('/', (req, res) => {
       assessments: '/api/assessments',
       certificates: '/api/certificates',
       progress: '/api/progress',
+      instructor: '/api/instructor',
+      leaderboard: '/api/leaderboard',
+      forum: '/api/forum',
     },
   })
 })
