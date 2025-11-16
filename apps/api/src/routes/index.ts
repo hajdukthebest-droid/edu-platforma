@@ -9,6 +9,7 @@ import leaderboardRoutes from './leaderboardRoutes'
 import forumRoutes from './forumRoutes'
 import notificationRoutes from './notificationRoutes'
 import reviewRoutes from './reviewRoutes'
+import adminRoutes from './adminRoutes'
 
 const router = Router()
 
@@ -21,6 +22,7 @@ router.use('/instructor', instructorRoutes)
 router.use('/leaderboard', leaderboardRoutes)
 router.use('/forum', forumRoutes)
 router.use('/notifications', notificationRoutes)
+router.use('/admin', adminRoutes)
 router.use('/', reviewRoutes)
 
 // API info
@@ -40,6 +42,7 @@ router.get('/', (req, res) => {
       forum: '/api/forum',
       notifications: '/api/notifications',
       reviews: '/api/courses/:courseId/reviews',
+      admin: '/api/admin',
     },
   })
 })
