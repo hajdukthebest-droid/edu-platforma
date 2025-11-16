@@ -22,6 +22,7 @@ import paymentRoutes from './paymentRoutes'
 import recommendationRoutes from './recommendationRoutes'
 import domainRoutes from './domainRoutes'
 import searchRoutes from './searchRoutes'
+import liveSessionRoutes from './liveSessionRoutes'
 
 const router = Router()
 
@@ -50,6 +51,7 @@ router.use('/upload', uploadRoutes)
 router.use('/messages', messageRoutes)
 router.use('/recommendations', recommendationRoutes)
 router.use('/search', searchRoutes)
+router.use('/live-sessions', liveSessionRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -81,6 +83,7 @@ router.get('/', (req, res) => {
       payments: '/api/payments',
       recommendations: '/api/recommendations',
       search: '/api/search',
+      liveSessions: '/api/live-sessions',
     },
   })
 })
