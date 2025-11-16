@@ -16,6 +16,7 @@ import noteRoutes from './noteRoutes'
 import bookmarkRoutes from './bookmarkRoutes'
 import profileRoutes from './profileRoutes'
 import uploadRoutes from './uploadRoutes'
+import messageRoutes from './messageRoutes'
 
 const router = Router()
 
@@ -36,6 +37,7 @@ router.use('/', noteRoutes)
 router.use('/', bookmarkRoutes)
 router.use('/', profileRoutes)
 router.use('/upload', uploadRoutes)
+router.use('/messages', messageRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -62,6 +64,7 @@ router.get('/', (req, res) => {
       bookmarks: '/api/bookmarks',
       profile: '/api/profile/:username',
       upload: '/api/upload',
+      messages: '/api/messages',
     },
   })
 })
