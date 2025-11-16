@@ -27,6 +27,7 @@ import courseBuilderRoutes from './courseBuilderRoutes'
 import aiRoutes from './aiRoutes'
 import mobileRoutes from './mobileRoutes'
 import analyticsRoutes from './analyticsRoutes'
+import versionRoutes from './versionRoutes'
 
 const router = Router()
 
@@ -60,6 +61,7 @@ router.use('/course-builder', courseBuilderRoutes)
 router.use('/ai', aiRoutes)
 router.use('/mobile', mobileRoutes)
 router.use('/analytics', analyticsRoutes)
+router.use('/versions', versionRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -96,6 +98,7 @@ router.get('/', (req, res) => {
       ai: '/api/ai',
       mobile: '/api/mobile',
       analytics: '/api/analytics',
+      versions: '/api/versions',
     },
   })
 })

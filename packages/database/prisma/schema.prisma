@@ -117,6 +117,9 @@ model User {
   instructorSessions LiveSession[] @relation("InstructorSessions")
   sessionAttendance LiveSessionAttendance[]
   sessionMessages   LiveSessionMessage[]
+  courseVersions    CourseVersion[] @relation("CourseVersions")
+  moduleVersions    ModuleVersion[] @relation("ModuleVersions")
+  lessonVersions    LessonVersion[] @relation("LessonVersions")
 
   @@index([email])
   @@index([role])
@@ -267,6 +270,7 @@ model Course {
   certificates      Certificate[]
   learningPaths     LearningPathCourse[]
   translations      CourseTranslation[]
+  versions          CourseVersion[]
 
   // Timestamps
   publishedAt       DateTime?
@@ -290,6 +294,7 @@ model Module {
   course       Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
   lessons      Lesson[]
   translations ModuleTranslation[]
+  versions     ModuleVersion[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -340,6 +345,7 @@ model Lesson {
   notes        Note[]
   bookmarks    Bookmark[]
   translations LessonTranslation[]
+  versions     LessonVersion[]
 
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -1267,4 +1273,100 @@ model LessonTranslation {
   @@unique([lessonId, locale])
   @@index([lessonId])
   @@map("lesson_translations")
+}
+
+// ============================================
+// CONTENT VERSIONING & ROLLBACK
+// ============================================
+
+model CourseVersion {
+  id          String   @id @default(cuid())
+  courseId    String
+  version     Int      // Incremental version number
+
+  // Snapshot of course data at this version
+  title             String
+  description       String?
+  shortDescription  String?
+  level             String
+  language          String
+  duration          Int?
+  price             Decimal  @db.Decimal(10, 2)
+  tags              String[]
+  learningObjectives String[]
+  requirements      String[]
+  targetAudience    String?
+
+  // Metadata
+  changeDescription String?  // What changed in this version
+  createdById       String
+  createdBy         User     @relation("CourseVersions", fields: [createdById], references: [id])
+
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([courseId, version])
+  @@index([courseId])
+  @@map("course_versions")
+}
+
+model ModuleVersion {
+  id          String   @id @default(cuid())
+  moduleId    String
+  version     Int
+
+  // Snapshot of module data
+  title       String
+  description String?
+  orderIndex  Int
+  duration    Int?
+
+  // Metadata
+  changeDescription String?
+  createdById       String
+  createdBy         User     @relation("ModuleVersions", fields: [createdById], references: [id])
+
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([moduleId, version])
+  @@index([moduleId])
+  @@map("module_versions")
+}
+
+model LessonVersion {
+  id          String   @id @default(cuid())
+  lessonId    String
+  version     Int
+
+  // Snapshot of lesson data
+  title       String
+  description String?
+  type        String
+  orderIndex  Int
+  duration    Int?
+  content     String?
+  contentBlocks Json?
+  videoUrl    String?
+  videoProvider String?
+  videoDuration Int?
+  attachments String[]
+  isPreview   Boolean
+  isMandatory Boolean
+  pointsReward Int
+
+  // Metadata
+  changeDescription String?
+  createdById       String
+  createdBy         User     @relation("LessonVersions", fields: [createdById], references: [id])
+
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([lessonId, version])
+  @@index([lessonId])
+  @@map("lesson_versions")
 }
