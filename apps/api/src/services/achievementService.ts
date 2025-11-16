@@ -129,7 +129,10 @@ export class AchievementService {
         user.firstName || 'Korisniče',
         achievement.name,
         achievement.description,
-        achievement.points
+        achievement.points,
+        achievement.icon || '🏆',
+        undefined, // rarity - not in DB yet
+        undefined  // category - not in DB yet
       ).catch(err => console.error('Failed to send achievement email:', err))
     }
 
@@ -304,6 +307,48 @@ export class AchievementService {
       badges,
       stats: user,
     }
+  }
+
+  /**
+   * Get top users by points for leaderboard
+   */
+  async getTopUsersByPoints(limit: number = 10) {
+    const topUsers = await prisma.user.findMany({
+      where: {
+        isActive: true,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        totalPoints: true,
+        level: true,
+        _count: {
+          select: {
+            userAchievements: true,
+            userBadges: true,
+            certificates: true,
+          },
+        },
+      },
+      orderBy: {
+        totalPoints: 'desc',
+      },
+      take: limit,
+    })
+
+    return topUsers.map((user, index) => ({
+      rank: index + 1,
+      userId: user.id,
+      name: `${user.firstName} ${user.lastName}`,
+      avatar: user.avatar,
+      totalPoints: user.totalPoints || 0,
+      level: user.level || 1,
+      achievementsCount: user._count.userAchievements,
+      badgesCount: user._count.userBadges,
+      certificatesCount: user._count.certificates,
+    }))
   }
 }
 

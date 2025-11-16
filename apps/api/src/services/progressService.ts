@@ -1,6 +1,7 @@
 import { prisma } from '@edu-platforma/database'
 import { AppError } from '../middleware/errorHandler'
 import { certificateService } from './certificateService'
+import { achievementService } from './achievementService'
 
 export class ProgressService {
   async markLessonComplete(userId: string, lessonId: string) {
@@ -68,6 +69,11 @@ export class ProgressService {
         },
       },
     })
+
+    // Check achievements (don't await - run in background)
+    achievementService.checkAndAwardAchievements(userId).catch(err =>
+      console.error('Achievement check failed:', err)
+    )
 
     return lessonProgress
   }
@@ -215,6 +221,14 @@ export class ProgressService {
       // Log error but don't fail the completion process
       console.error('Failed to issue certificate:', error)
     }
+
+    // Check achievements and badges (don't await - run in background)
+    achievementService.checkAndAwardAchievements(userId).catch(err =>
+      console.error('Achievement check failed:', err)
+    )
+    achievementService.checkAndAwardBadges(userId).catch(err =>
+      console.error('Badge check failed:', err)
+    )
   }
 
   async getCourseProgressWithLessons(userId: string, courseId: string) {

@@ -6,6 +6,7 @@ import { courseEnrollmentEmail } from '../templates/emails/courseEnrollment'
 import { passwordResetEmail } from '../templates/emails/passwordReset'
 import { courseApprovedEmail } from '../templates/emails/courseApproved'
 import { courseRejectedEmail } from '../templates/emails/courseRejected'
+import { achievementEmail } from '../templates/emails/achievement'
 
 interface EmailOptions {
   to: string
@@ -97,31 +98,24 @@ export class EmailService {
     name: string,
     achievementName: string,
     achievementDescription: string,
-    points: number
+    points: number,
+    achievementIcon: string = '🏆',
+    rarity?: string,
+    category?: string
   ): Promise<void> {
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #f59e0b;">🏆 Novo postignuće otključano!</h1>
-        <p>Zdravo ${name},</p>
-        <p>Čestitamo! Otključali ste novo postignuće:</p>
-        <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h2 style="color: #f59e0b; margin: 0 0 10px 0;">${achievementName}</h2>
-          <p style="margin: 0 0 10px 0;">${achievementDescription}</p>
-          <p style="margin: 0; font-weight: bold; color: #f59e0b;">+${points} bodova</p>
-        </div>
-        <a href="${env.WEB_URL}/achievements" style="display: inline-block; padding: 12px 24px; background: #f59e0b; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">
-          Pogledaj sva postignuća
-        </a>
-        <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-          Hvala,<br>
-          Tim Edu Platforme
-        </p>
-      </div>
-    `
+    const html = achievementEmail({
+      firstName: name,
+      achievementName,
+      achievementDescription,
+      achievementIcon,
+      points,
+      rarity,
+      category,
+    })
 
     await this.sendEmail({
       to: email,
-      subject: `Novo postignuće: ${achievementName}`,
+      subject: `Novo postignuće: ${achievementName} 🎉`,
       html,
     })
   }
