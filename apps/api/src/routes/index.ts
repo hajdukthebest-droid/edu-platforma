@@ -11,6 +11,7 @@ import notificationRoutes from './notificationRoutes'
 import reviewRoutes from './reviewRoutes'
 import adminRoutes from './adminRoutes'
 import learningPathRoutes from './learningPathRoutes'
+import achievementRoutes from './achievementRoutes'
 
 const router = Router()
 
@@ -25,6 +26,7 @@ router.use('/forum', forumRoutes)
 router.use('/notifications', notificationRoutes)
 router.use('/admin', adminRoutes)
 router.use('/learning-paths', learningPathRoutes)
+router.use('/', achievementRoutes)
 router.use('/', reviewRoutes)
 
 // API info
@@ -46,6 +48,8 @@ router.get('/', (req, res) => {
       reviews: '/api/courses/:courseId/reviews',
       admin: '/api/admin',
       learningPaths: '/api/learning-paths',
+      achievements: '/api/achievements',
+      badges: '/api/badges',
     },
   })
 })
