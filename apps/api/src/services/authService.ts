@@ -2,6 +2,7 @@ import { prisma } from '@edu-platforma/database'
 import bcrypt from 'bcryptjs'
 import { AppError } from '../middleware/errorHandler'
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt'
+import { emailService } from './emailService'
 import { UserRole } from '@prisma/client'
 
 interface RegisterData {
@@ -52,6 +53,12 @@ export class AuthService {
         createdAt: true,
       },
     })
+
+    // Send welcome email (don't await to not block response)
+    emailService.sendWelcomeEmail(
+      user.email,
+      user.firstName || 'Korisniče'
+    ).catch(err => console.error('Failed to send welcome email:', err))
 
     // Generate tokens
     const accessToken = generateAccessToken({

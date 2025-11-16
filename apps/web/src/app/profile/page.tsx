@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { AvatarUpload } from '@/components/AvatarUpload'
 import api from '@/lib/api'
 import { User, Award, TrendingUp, Calendar } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
@@ -128,6 +129,17 @@ export default function ProfilePage() {
 
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Avatar Upload */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Profilna slika</CardTitle>
+                <CardDescription>Promijenite svoju profilnu sliku</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AvatarUpload currentAvatar={user.avatar} />
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">

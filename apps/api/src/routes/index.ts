@@ -15,6 +15,7 @@ import achievementRoutes from './achievementRoutes'
 import noteRoutes from './noteRoutes'
 import bookmarkRoutes from './bookmarkRoutes'
 import profileRoutes from './profileRoutes'
+import uploadRoutes from './uploadRoutes'
 
 const router = Router()
 
@@ -34,6 +35,7 @@ router.use('/', reviewRoutes)
 router.use('/', noteRoutes)
 router.use('/', bookmarkRoutes)
 router.use('/', profileRoutes)
+router.use('/upload', uploadRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -59,6 +61,7 @@ router.get('/', (req, res) => {
       notes: '/api/notes',
       bookmarks: '/api/bookmarks',
       profile: '/api/profile/:username',
+      upload: '/api/upload',
     },
   })
 })

@@ -109,6 +109,9 @@ model User {
   subscriptions     Subscription[]
   learningPathsCreated LearningPath[] @relation("LearningPathsCreated")
   userLearningPaths UserLearningPath[]
+  conversationsAsParticipant1 Conversation[] @relation("ConversationsAsParticipant1")
+  conversationsAsParticipant2 Conversation[] @relation("ConversationsAsParticipant2")
+  messagesSent      Message[]      @relation("MessagesSent")
 
   @@index([email])
   @@index([role])
@@ -881,4 +884,56 @@ model AnalyticsEvent {
   @@index([eventType])
   @@index([userId])
   @@map("analytics_events")
+}
+
+// ============================================
+// MESSAGING
+// ============================================
+
+model Conversation {
+  id        String   @id @default(cuid())
+
+  // Participants
+  participant1Id String
+  participant2Id String
+
+  // Last message info for quick access
+  lastMessageAt  DateTime?
+  lastMessageText String?
+
+  // Read status
+  participant1Unread Int @default(0)
+  participant2Unread Int @default(0)
+
+  participant1 User @relation("ConversationsAsParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
+  participant2 User @relation("ConversationsAsParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
+
+  messages Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([participant1Id, participant2Id])
+  @@index([participant1Id])
+  @@index([participant2Id])
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String
+
+  content        String
+  isRead         Boolean  @default(false)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("messages")
 }

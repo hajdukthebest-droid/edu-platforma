@@ -1,6 +1,7 @@
 import { prisma } from '@edu-platforma/database'
 import { BadgeType } from '@prisma/client'
 import { notificationService } from './notificationService'
+import { emailService } from './emailService'
 
 export class AchievementService {
   async getUserAchievements(userId: string) {
@@ -115,6 +116,22 @@ export class AchievementService {
 
     // Send notification
     await notificationService.notifyAchievement(userId, achievement.name, achievement.id)
+
+    // Send email notification (don't await to not block response)
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true },
+    })
+
+    if (user) {
+      emailService.sendAchievementEmail(
+        user.email,
+        user.firstName || 'Korisniče',
+        achievement.name,
+        achievement.description,
+        achievement.points
+      ).catch(err => console.error('Failed to send achievement email:', err))
+    }
 
     return userAchievement
   }

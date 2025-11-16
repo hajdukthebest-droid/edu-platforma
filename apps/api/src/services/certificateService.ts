@@ -2,6 +2,7 @@ import { prisma } from '@edu-platforma/database'
 import { AppError } from '../middleware/errorHandler'
 import crypto from 'crypto'
 import { notificationService } from './notificationService'
+import { emailService } from './emailService'
 
 export class CertificateService {
   async issueCertificate(userId: string, courseId: string) {
@@ -82,6 +83,15 @@ export class CertificateService {
 
     // Send notification
     await notificationService.notifyCertificate(userId, progress.course.title, certificate.id)
+
+    // Send email notification (don't await to not block response)
+    const certificateUrl = `${process.env.FRONTEND_URL}/certificates/${certificate.id}`
+    emailService.sendCertificateEmail(
+      certificate.user.email,
+      certificate.user.firstName || 'Korisniče',
+      certificate.course.title,
+      certificateUrl
+    ).catch(err => console.error('Failed to send certificate email:', err))
 
     return certificate
   }

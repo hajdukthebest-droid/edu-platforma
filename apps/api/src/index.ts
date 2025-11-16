@@ -3,6 +3,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import compression from 'compression'
 import morgan from 'morgan'
+import path from 'path'
 import { env } from './config/env'
 import { errorHandler } from './middleware/errorHandler'
 import { notFoundHandler } from './middleware/notFoundHandler'
@@ -32,6 +33,9 @@ if (env.NODE_ENV === 'development') {
 } else {
   app.use(morgan('combined'))
 }
+
+// Static file serving for uploads
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
