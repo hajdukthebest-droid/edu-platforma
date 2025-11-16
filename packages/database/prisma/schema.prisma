@@ -107,6 +107,8 @@ model User {
   createdCourses    Course[]       @relation("CourseCreator")
   payments          Payment[]
   subscriptions     Subscription[]
+  learningPathsCreated LearningPath[] @relation("LearningPathsCreated")
+  userLearningPaths UserLearningPath[]
 
   @@index([email])
   @@index([role])
@@ -233,6 +235,7 @@ model Course {
   progress          CourseProgress[]
   reviews           Review[]
   certificates      Certificate[]
+  learningPaths     LearningPathCourse[]
 
   // Timestamps
   publishedAt       DateTime?
@@ -791,6 +794,70 @@ model Subscription {
   updatedAt         DateTime           @updatedAt
 
   @@map("subscriptions")
+}
+
+// ============================================
+// LEARNING PATHS
+// ============================================
+
+model LearningPath {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String?
+  thumbnail   String?
+
+  level       CourseLevel?
+  estimatedHours Int?
+
+  isPublished Boolean  @default(false)
+  creatorId   String
+
+  creator     User     @relation("LearningPathsCreated", fields: [creatorId], references: [id])
+  courses     LearningPathCourse[]
+  userPaths   UserLearningPath[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("learning_paths")
+}
+
+model LearningPathCourse {
+  id              String       @id @default(cuid())
+  learningPathId  String
+  courseId        String
+  orderIndex      Int
+
+  learningPath    LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  course          Course       @relation(fields: [courseId], references: [id])
+
+  createdAt       DateTime     @default(now())
+
+  @@unique([learningPathId, courseId])
+  @@map("learning_path_courses")
+}
+
+model UserLearningPath {
+  id              String       @id @default(cuid())
+  userId          String
+  learningPathId  String
+
+  currentCourseIndex Int       @default(0)
+  completedCourses   Int       @default(0)
+  progressPercentage Float     @default(0)
+
+  isCompleted     Boolean      @default(false)
+  completedAt     DateTime?
+
+  user            User         @relation(fields: [userId], references: [id])
+  learningPath    LearningPath @relation(fields: [learningPathId], references: [id])
+
+  startedAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([userId, learningPathId])
+  @@map("user_learning_paths")
 }
 
 // ============================================
