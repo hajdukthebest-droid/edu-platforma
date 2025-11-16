@@ -1,6 +1,7 @@
 import { prisma } from '@edu-platforma/database'
 import { AppError } from '../middleware/errorHandler'
 import { CourseLevel, CourseStatus, Prisma } from '@prisma/client'
+import { cacheService } from './cacheService'
 
 interface CreateCourseData {
   title: string
@@ -99,6 +100,11 @@ export class CourseService {
         category: true,
       },
     })
+
+    // Invalidate relevant caches
+    await cacheService.invalidateRecommendations()
+    await cacheService.deletePattern('courses:*')
+    await cacheService.deletePattern('trending:*')
 
     return course
   }
