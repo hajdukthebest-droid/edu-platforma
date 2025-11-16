@@ -2,6 +2,8 @@ import { prisma } from '@edu-platforma/database'
 import { AppError } from '../middleware/errorHandler'
 import { CourseStatus } from '@prisma/client'
 import { cacheService } from './cacheService'
+import { emailService } from './emailService'
+import { env } from '../config/env'
 
 interface GetCoursesQuery {
   page?: number
@@ -107,7 +109,17 @@ export class AdminCourseService {
   async approveCourse(courseId: string, adminId: string) {
     const course = await prisma.course.findUnique({
       where: { id: courseId },
-      select: { status: true, creatorId: true },
+      select: {
+        status: true,
+        creatorId: true,
+        creator: {
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
     })
 
     if (!course) {
@@ -137,6 +149,22 @@ export class AdminCourseService {
       },
     })
 
+    // Send email notification to instructor
+    try {
+      const instructorName = `${course.creator.firstName} ${course.creator.lastName}`
+      const courseUrl = `${env.WEB_URL}/courses/${updatedCourse.slug}`
+
+      await emailService.sendCourseApprovedEmail(
+        course.creator.email,
+        instructorName,
+        updatedCourse.title,
+        courseUrl
+      )
+    } catch (error) {
+      console.error('Failed to send course approval email:', error)
+      // Don't fail the approval process if email fails
+    }
+
     // Invalidate cache
     await cacheService.invalidateCourse(courseId)
     await cacheService.invalidateRecommendations()
@@ -150,7 +178,18 @@ export class AdminCourseService {
   async rejectCourse(courseId: string, adminId: string, reason: string) {
     const course = await prisma.course.findUnique({
       where: { id: courseId },
-      select: { title: true, creatorId: true },
+      select: {
+        title: true,
+        slug: true,
+        creatorId: true,
+        creator: {
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
     })
 
     if (!course) {
@@ -173,6 +212,23 @@ export class AdminCourseService {
         message: `Vaš tečaj "${course.title}" je odbijen. Razlog: ${reason}`,
       },
     })
+
+    // Send email notification to instructor
+    try {
+      const instructorName = `${course.creator.firstName} ${course.creator.lastName}`
+      const dashboardUrl = `${env.WEB_URL}/instructor/courses/${course.slug}/edit`
+
+      await emailService.sendCourseRejectedEmail(
+        course.creator.email,
+        instructorName,
+        course.title,
+        reason,
+        dashboardUrl
+      )
+    } catch (error) {
+      console.error('Failed to send course rejection email:', error)
+      // Don't fail the rejection process if email fails
+    }
 
     await cacheService.invalidateCourse(courseId)
 

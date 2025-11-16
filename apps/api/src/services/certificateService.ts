@@ -95,7 +95,9 @@ export class CertificateService {
       certificate.user.email,
       certificate.user.firstName || 'Korisniče',
       certificate.course.title,
-      certificateUrl
+      certificateUrl,
+      certificate.course.cpdPoints || undefined,
+      certificate.course.cmeCredits || undefined
     ).catch(err => console.error('Failed to send certificate email:', err))
 
     return certificate

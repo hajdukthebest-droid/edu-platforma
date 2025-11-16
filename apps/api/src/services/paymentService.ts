@@ -178,6 +178,13 @@ export class PaymentService {
             id: true,
             title: true,
             slug: true,
+            thumbnail: true,
+            creator: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
           },
         },
       },
@@ -195,12 +202,15 @@ export class PaymentService {
     // Send enrollment email
     const { emailService } = await import('./emailService')
     const courseUrl = `${process.env.FRONTEND_URL}/courses/${enrollment.course.slug}`
+    const instructorName = `${enrollment.course.creator.firstName} ${enrollment.course.creator.lastName}`
     emailService
       .sendEnrollmentEmail(
         payment.user.email,
         payment.user.firstName || 'Korisniče',
         enrollment.course.title,
-        courseUrl
+        courseUrl,
+        instructorName,
+        enrollment.course.thumbnail || undefined
       )
       .catch((err) => console.error('Failed to send enrollment email:', err))
   }

@@ -1,5 +1,11 @@
 import nodemailer from 'nodemailer'
 import { env } from '../config/env'
+import { welcomeEmail } from '../templates/emails/welcome'
+import { certificateEmail } from '../templates/emails/certificate'
+import { courseEnrollmentEmail } from '../templates/emails/courseEnrollment'
+import { passwordResetEmail } from '../templates/emails/passwordReset'
+import { courseApprovedEmail } from '../templates/emails/courseApproved'
+import { courseRejectedEmail } from '../templates/emails/courseRejected'
 
 interface EmailOptions {
   to: string
@@ -44,32 +50,15 @@ export class EmailService {
   /**
    * Send welcome email
    */
-  async sendWelcomeEmail(email: string, name: string): Promise<void> {
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #2563eb;">Dobrodošli u Edu Platforma!</h1>
-        <p>Zdravo ${name},</p>
-        <p>Dobrodošli u našu platformu za online učenje. Zahvaljujemo što ste se pridružili!</p>
-        <p>Sada možete:</p>
-        <ul>
-          <li>Pregledati dostupne kurseve</li>
-          <li>Upisati se na kurseve koji vas zanimaju</li>
-          <li>Pratiti svoj napredak</li>
-          <li>Osvajati bedževe i postignuća</li>
-        </ul>
-        <a href="${env.WEB_URL}" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">
-          Započni učenje
-        </a>
-        <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-          Hvala,<br>
-          Tim Edu Platforme
-        </p>
-      </div>
-    `
+  async sendWelcomeEmail(email: string, name: string, verificationUrl?: string): Promise<void> {
+    const html = welcomeEmail({
+      firstName: name,
+      verificationUrl,
+    })
 
     await this.sendEmail({
       to: email,
-      subject: 'Dobrodošli u Edu Platforma!',
+      subject: 'Dobrodošli na Edu Platformu!',
       html,
     })
   }
@@ -81,34 +70,21 @@ export class EmailService {
     email: string,
     name: string,
     courseTitle: string,
-    certificateUrl: string
+    certificateUrl: string,
+    cpdPoints?: number,
+    cmeCredits?: number
   ): Promise<void> {
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #10b981;">🎉 Čestitamo! Osvojili ste certifikat!</h1>
-        <p>Zdravo ${name},</p>
-        <p>Čestitamo na uspješnom završetku kursa:</p>
-        <h2 style="color: #2563eb;">${courseTitle}</h2>
-        <p>Vaš certifikat je spreman i možete ga preuzeti klikom na dugme ispod:</p>
-        <a href="${certificateUrl}" style="display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">
-          Preuzmi certifikat
-        </a>
-        <p>Certifikat možete koristiti za:</p>
-        <ul>
-          <li>Dijeljenje na društvenim mrežama</li>
-          <li>Dodavanje u CV</li>
-          <li>Prikazivanje poslodavcima</li>
-        </ul>
-        <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-          Hvala,<br>
-          Tim Edu Platforme
-        </p>
-      </div>
-    `
+    const html = certificateEmail({
+      firstName: name,
+      courseTitle,
+      certificateUrl,
+      cpdPoints,
+      cmeCredits,
+    })
 
     await this.sendEmail({
       to: email,
-      subject: `Certifikat za kurs: ${courseTitle}`,
+      subject: 'Čestitamo! Zaradili ste certifikat 🎉',
       html,
     })
   }
@@ -190,27 +166,21 @@ export class EmailService {
     email: string,
     name: string,
     courseTitle: string,
-    courseUrl: string
+    courseUrl: string,
+    instructorName?: string,
+    thumbnail?: string
   ): Promise<void> {
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #10b981;">✅ Uspješno ste se upisali!</h1>
-        <p>Zdravo ${name},</p>
-        <p>Uspješno ste se upisali na kurs:</p>
-        <h2 style="color: #2563eb;">${courseTitle}</h2>
-        <a href="${courseUrl}" style="display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">
-          Započni kurs
-        </a>
-        <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-          Hvala,<br>
-          Tim Edu Platforme
-        </p>
-      </div>
-    `
+    const html = courseEnrollmentEmail({
+      firstName: name,
+      courseTitle,
+      courseUrl,
+      instructorName,
+      thumbnail,
+    })
 
     await this.sendEmail({
       to: email,
-      subject: `Upis na kurs: ${courseTitle}`,
+      subject: `Uspješan upis na tečaj: ${courseTitle} 🚀`,
       html,
     })
   }
@@ -225,28 +195,60 @@ export class EmailService {
   ): Promise<void> {
     const resetUrl = `${env.WEB_URL}/reset-password?token=${resetToken}`
 
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #ef4444;">🔒 Resetiranje lozinke</h1>
-        <p>Zdravo ${name},</p>
-        <p>Primili smo zahtjev za resetiranje vaše lozinke. Kliknite na dugme ispod da postavite novu lozinku:</p>
-        <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #ef4444; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">
-          Resetiraj lozinku
-        </a>
-        <p style="color: #6b7280; font-size: 14px;">
-          Ovaj link je valjan 1 sat.<br>
-          Ako niste zatražili resetiranje lozinke, ignorirajte ovaj email.
-        </p>
-        <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-          Hvala,<br>
-          Tim Edu Platforme
-        </p>
-      </div>
-    `
+    const html = passwordResetEmail({
+      firstName: name,
+      resetUrl,
+    })
 
     await this.sendEmail({
       to: email,
-      subject: 'Resetiranje lozinke - Edu Platforma',
+      subject: 'Resetiranje lozinke 🔒',
+      html,
+    })
+  }
+
+  /**
+   * Send course approved notification (for instructors)
+   */
+  async sendCourseApprovedEmail(
+    email: string,
+    instructorName: string,
+    courseTitle: string,
+    courseUrl: string
+  ): Promise<void> {
+    const html = courseApprovedEmail({
+      instructorName,
+      courseTitle,
+      courseUrl,
+    })
+
+    await this.sendEmail({
+      to: email,
+      subject: `Vaš tečaj "${courseTitle}" je odobren! 🎉`,
+      html,
+    })
+  }
+
+  /**
+   * Send course rejected notification (for instructors)
+   */
+  async sendCourseRejectedEmail(
+    email: string,
+    instructorName: string,
+    courseTitle: string,
+    reason: string,
+    dashboardUrl: string
+  ): Promise<void> {
+    const html = courseRejectedEmail({
+      instructorName,
+      courseTitle,
+      reason,
+      dashboardUrl,
+    })
+
+    await this.sendEmail({
+      to: email,
+      subject: `Tečaj "${courseTitle}" zahtijeva izmjene`,
       html,
     })
   }
