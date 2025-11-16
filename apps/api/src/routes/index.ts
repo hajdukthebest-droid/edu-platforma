@@ -23,6 +23,7 @@ import recommendationRoutes from './recommendationRoutes'
 import domainRoutes from './domainRoutes'
 import searchRoutes from './searchRoutes'
 import liveSessionRoutes from './liveSessionRoutes'
+import courseBuilderRoutes from './courseBuilderRoutes'
 
 const router = Router()
 
@@ -52,6 +53,7 @@ router.use('/messages', messageRoutes)
 router.use('/recommendations', recommendationRoutes)
 router.use('/search', searchRoutes)
 router.use('/live-sessions', liveSessionRoutes)
+router.use('/course-builder', courseBuilderRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -84,6 +86,7 @@ router.get('/', (req, res) => {
       recommendations: '/api/recommendations',
       search: '/api/search',
       liveSessions: '/api/live-sessions',
+      courseBuilder: '/api/course-builder',
     },
   })
 })

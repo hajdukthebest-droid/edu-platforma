@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import api from '@/lib/api'
-import { Users, BookOpen, Star, TrendingUp, Eye, Plus } from 'lucide-react'
+import { Users, BookOpen, Star, TrendingUp, Eye, Plus, Wrench } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
 export default function InstructorDashboardPage() {
@@ -144,11 +144,18 @@ export default function InstructorDashboardPage() {
                           </span>
                         </div>
                       </div>
-                      <Button asChild variant="ghost" size="sm">
-                        <Link href={`/instructor/courses/${course.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button asChild variant="ghost" size="sm">
+                          <Link href={`/instructor/courses/${course.id}/builder`}>
+                            <Wrench className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button asChild variant="ghost" size="sm">
+                          <Link href={`/instructor/courses/${course.id}`}>
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </div>
                     </div>
                   ))
                 )}
