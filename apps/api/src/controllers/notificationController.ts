@@ -96,6 +96,66 @@ export class NotificationController {
       next(error)
     }
   }
+
+  async markAsUnread(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      await notificationService.markAsUnread(req.params.id, req.user.id)
+
+      res.json({
+        status: 'success',
+        message: 'Notification marked as unread',
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async deleteAllRead(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      await notificationService.deleteAllRead(req.user.id)
+
+      res.json({
+        status: 'success',
+        message: 'All read notifications deleted',
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async getByType(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      const type = req.params.type as any
+      const page = parseInt(req.query.page as string) || 1
+      const limit = parseInt(req.query.limit as string) || 20
+
+      const result = await notificationService.getNotificationsByType(
+        req.user.id,
+        type,
+        page,
+        limit
+      )
+
+      res.json({
+        status: 'success',
+        data: result,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
 }
 
 export const notificationController = new NotificationController()

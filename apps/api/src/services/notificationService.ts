@@ -102,6 +102,30 @@ export class NotificationService {
     })
   }
 
+  async markAsUnread(notificationId: string, userId: string) {
+    const notification = await prisma.notification.findUnique({
+      where: { id: notificationId },
+    })
+
+    if (!notification) {
+      throw new AppError(404, 'Notification not found')
+    }
+
+    if (notification.userId !== userId) {
+      throw new AppError(403, 'Not authorized to modify this notification')
+    }
+
+    const updated = await prisma.notification.update({
+      where: { id: notificationId },
+      data: {
+        isRead: false,
+        readAt: null,
+      },
+    })
+
+    return updated
+  }
+
   async deleteNotification(notificationId: string, userId: string) {
     const notification = await prisma.notification.findUnique({
       where: { id: notificationId },
@@ -118,6 +142,54 @@ export class NotificationService {
     await prisma.notification.delete({
       where: { id: notificationId },
     })
+  }
+
+  async deleteAllRead(userId: string) {
+    await prisma.notification.deleteMany({
+      where: {
+        userId,
+        isRead: true,
+      },
+    })
+  }
+
+  async getNotificationsByType(
+    userId: string,
+    type: NotificationType,
+    page = 1,
+    limit = 20
+  ) {
+    const [notifications, total] = await Promise.all([
+      prisma.notification.findMany({
+        where: {
+          userId,
+          type,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.notification.count({
+        where: {
+          userId,
+          type,
+        },
+      }),
+    ])
+
+    return {
+      notifications,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    }
+  }
+
+  async create(data: CreateNotificationData) {
+    return this.createNotification(data)
   }
 
   // Helper methods to create specific notification types
