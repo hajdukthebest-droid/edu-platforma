@@ -1,6 +1,7 @@
 import { prisma } from '@edu-platforma/database'
 import { AppError } from '../middleware/errorHandler'
 import { Prisma } from '@prisma/client'
+import { notificationService } from './notificationService'
 
 interface CreatePostData {
   categoryId: string
@@ -206,6 +207,20 @@ export class ForumService {
   }
 
   async createComment(postId: string, userId: string, data: CreateCommentData) {
+    // Get post details for notification
+    const post = await prisma.forumPost.findUnique({
+      where: { id: postId },
+      select: {
+        id: true,
+        title: true,
+        authorId: true,
+      },
+    })
+
+    if (!post) {
+      throw new AppError(404, 'Post not found')
+    }
+
     const comment = await prisma.forumComment.create({
       data: {
         postId,
@@ -233,6 +248,12 @@ export class ForumService {
         },
       },
     })
+
+    // Send notification to post author (if not self-comment)
+    if (post.authorId !== userId) {
+      const commenterName = `${comment.author.firstName} ${comment.author.lastName}`
+      await notificationService.notifyForumReply(post.authorId, post.title, post.id, commenterName)
+    }
 
     return comment
   }

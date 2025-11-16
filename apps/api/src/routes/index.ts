@@ -7,6 +7,7 @@ import progressRoutes from './progressRoutes'
 import instructorRoutes from './instructorRoutes'
 import leaderboardRoutes from './leaderboardRoutes'
 import forumRoutes from './forumRoutes'
+import notificationRoutes from './notificationRoutes'
 
 const router = Router()
 
@@ -18,6 +19,7 @@ router.use('/progress', progressRoutes)
 router.use('/instructor', instructorRoutes)
 router.use('/leaderboard', leaderboardRoutes)
 router.use('/forum', forumRoutes)
+router.use('/notifications', notificationRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -34,6 +36,7 @@ router.get('/', (req, res) => {
       instructor: '/api/instructor',
       leaderboard: '/api/leaderboard',
       forum: '/api/forum',
+      notifications: '/api/notifications',
     },
   })
 })

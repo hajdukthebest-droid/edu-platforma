@@ -1,6 +1,7 @@
 import { prisma } from '@edu-platforma/database'
 import { AppError } from '../middleware/errorHandler'
 import crypto from 'crypto'
+import { notificationService } from './notificationService'
 
 export class CertificateService {
   async issueCertificate(userId: string, courseId: string) {
@@ -78,6 +79,9 @@ export class CertificateService {
         },
       },
     })
+
+    // Send notification
+    await notificationService.notifyCertificate(userId, progress.course.title, certificate.id)
 
     return certificate
   }
