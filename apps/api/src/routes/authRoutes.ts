@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { authController } from '../controllers/authController'
+import { userController } from '../controllers/userController'
 import { authenticate } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { z } from 'zod'
@@ -25,6 +26,7 @@ const loginSchema = z.object({
 router.post('/register', validate(registerSchema), authController.register.bind(authController))
 router.post('/login', validate(loginSchema), authController.login.bind(authController))
 router.get('/profile', authenticate, authController.getProfile.bind(authController))
+router.put('/profile', authenticate, userController.updateProfile.bind(userController))
 router.post('/logout', authenticate, authController.logout.bind(authController))
 
 export default router
