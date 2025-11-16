@@ -167,6 +167,202 @@ export class AssessmentController {
       next(error)
     }
   }
+
+  // ============================================
+  // NEW CONTROLLER METHODS
+  // ============================================
+
+  async updateAssessment(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      const assessment = await assessmentService.updateAssessment(req.params.id, req.body)
+
+      res.json({
+        status: 'success',
+        data: assessment,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async deleteAssessment(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      await assessmentService.deleteAssessment(req.params.id)
+
+      res.json({
+        status: 'success',
+        message: 'Assessment deleted',
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async getCourseAssessments(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const assessments = await assessmentService.getCourseAssessments(req.params.courseId)
+
+      res.json({
+        status: 'success',
+        data: assessments,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async getInstructorAssessments(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      const assessments = await assessmentService.getInstructorAssessments(req.user.id)
+
+      res.json({
+        status: 'success',
+        data: assessments,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async getAssessmentAttempts(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      const page = parseInt(req.query.page as string) || 1
+      const limit = parseInt(req.query.limit as string) || 20
+
+      const result = await assessmentService.getAssessmentAttempts(
+        req.params.id,
+        page,
+        limit
+      )
+
+      res.json({
+        status: 'success',
+        data: result,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async gradeAttempt(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      // Verify instructor role
+      if (req.user.role !== 'INSTRUCTOR' && req.user.role !== 'ADMIN') {
+        return res.status(403).json({
+          status: 'error',
+          message: 'Only instructors can grade assessments',
+        })
+      }
+
+      const attempt = await assessmentService.gradeAttempt(
+        req.params.attemptId,
+        req.user.id,
+        req.body
+      )
+
+      res.json({
+        status: 'success',
+        data: attempt,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async getAssessmentAnalytics(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      const analytics = await assessmentService.getAssessmentAnalytics(req.params.id)
+
+      res.json({
+        status: 'success',
+        data: analytics,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async getQuestionAnalytics(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      const questionStats = await assessmentService.getQuestionAnalytics(req.params.id)
+
+      res.json({
+        status: 'success',
+        data: questionStats,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async reorderQuestions(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      const { questionIds } = req.body
+
+      const assessment = await assessmentService.reorderQuestions(
+        req.params.id,
+        questionIds
+      )
+
+      res.json({
+        status: 'success',
+        data: assessment,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async duplicateAssessment(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      const { title } = req.body
+
+      const duplicated = await assessmentService.duplicateAssessment(req.params.id, title)
+
+      res.json({
+        status: 'success',
+        data: duplicated,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
 }
 
 export const assessmentController = new AssessmentController()

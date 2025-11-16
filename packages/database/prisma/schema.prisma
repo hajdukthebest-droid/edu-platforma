@@ -351,6 +351,8 @@ enum AssessmentType {
 model Assessment {
   id              String         @id @default(cuid())
   courseId        String?
+  lessonId        String?        // Link to lesson for in-lesson quizzes
+  moduleId        String?        // Link to module for module-end quizzes
   title           String
   description     String?
   type            AssessmentType @default(QUIZ)
@@ -363,6 +365,15 @@ model Assessment {
   shuffleAnswers  Boolean        @default(false)
   showResults     Boolean        @default(true)
   showCorrectAnswers Boolean     @default(true)
+
+  // Advanced settings
+  requiresManualGrading Boolean  @default(false) // If contains essay questions
+  isPublished     Boolean        @default(false)
+  randomizeQuestions Int?        // Number of random questions to show (null = all)
+
+  // Timing
+  availableFrom   DateTime?      // When quiz becomes available
+  availableUntil  DateTime?      // When quiz expires
 
   // Gamification
   pointsReward    Int            @default(50)
@@ -407,25 +418,59 @@ model Question {
   @@map("questions")
 }
 
+enum GradingStatus {
+  NOT_GRADED
+  PENDING
+  GRADED
+  NEEDS_REVISION
+}
+
 model AssessmentAttempt {
-  id            String     @id @default(cuid())
+  id            String        @id @default(cuid())
   assessmentId  String
   userId        String
 
-  answers       Json       // User's answers
+  answers       Json          // User's answers per question
   score         Float
   totalPoints   Int
   earnedPoints  Int
   passed        Boolean
-  timeSpent     Int?       // seconds
+  timeSpent     Int?          // seconds
 
-  startedAt     DateTime   @default(now())
+  // Manual grading support
+  gradingStatus GradingStatus @default(NOT_GRADED)
+  gradedBy      String?       // Instructor ID who graded
+  gradedAt      DateTime?
+  feedback      String?       // Overall feedback from instructor
+
+  startedAt     DateTime      @default(now())
   completedAt   DateTime?
 
-  assessment    Assessment @relation(fields: [assessmentId], references: [id])
-  user          User       @relation(fields: [userId], references: [id])
+  assessment    Assessment    @relation(fields: [assessmentId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+  questionAttempts QuestionAttempt[]
 
   @@map("assessment_attempts")
+}
+
+// Detailed tracking of individual question attempts
+model QuestionAttempt {
+  id              String            @id @default(cuid())
+  attemptId       String
+  questionId      String
+
+  answer          Json              // User's answer
+  isCorrect       Boolean?          // null for ungraded
+  pointsEarned    Float             @default(0)
+
+  // Manual grading
+  instructorFeedback String?
+
+  attempt         AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime          @default(now())
+
+  @@map("question_attempts")
 }
 
 // ============================================
