@@ -24,6 +24,7 @@ import domainRoutes from './domainRoutes'
 import searchRoutes from './searchRoutes'
 import liveSessionRoutes from './liveSessionRoutes'
 import courseBuilderRoutes from './courseBuilderRoutes'
+import aiRoutes from './aiRoutes'
 
 const router = Router()
 
@@ -54,6 +55,7 @@ router.use('/recommendations', recommendationRoutes)
 router.use('/search', searchRoutes)
 router.use('/live-sessions', liveSessionRoutes)
 router.use('/course-builder', courseBuilderRoutes)
+router.use('/ai', aiRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -87,6 +89,7 @@ router.get('/', (req, res) => {
       search: '/api/search',
       liveSessions: '/api/live-sessions',
       courseBuilder: '/api/course-builder',
+      ai: '/api/ai',
     },
   })
 })
