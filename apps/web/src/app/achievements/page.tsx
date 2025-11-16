@@ -1,50 +1,124 @@
 'use client'
 
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import api from '@/lib/api'
-import { Award, Trophy, Star, TrendingUp, Lock } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+import AchievementCard from '@/components/achievements/AchievementCard'
+import AchievementStats from '@/components/achievements/AchievementStats'
+import Leaderboard from '@/components/achievements/Leaderboard'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+
+interface Achievement {
+  id: string
+  name: string
+  description: string
+  icon: string
+  points: number
+  criteria: any
+  definition?: {
+    key: string
+    name: string
+    description: string
+    icon: string
+    points: number
+    category: string
+    rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
+  }
+  userProgress?: {
+    progress: number
+    isCompleted: boolean
+    completedAt: string | null
+  }
+}
+
+interface UserStats {
+  stats: {
+    totalPoints: number
+    level: number
+    currentStreak: number
+    longestStreak: number
+  }
+}
+
+interface LeaderboardEntry {
+  rank: number
+  userId: string
+  name: string
+  avatar: string | null
+  totalPoints: number
+  level: number
+  achievementsCount: number
+  badgesCount: number
+  certificatesCount: number
+}
+
+const categories = [
+  { value: 'all', label: 'Sve', icon: '🌟' },
+  { value: 'learning', label: 'Učenje', icon: '📚' },
+  { value: 'engagement', label: 'Angažman', icon: '💬' },
+  { value: 'streak', label: 'Nizovi', icon: '🔥' },
+  { value: 'certificate', label: 'Certifikati', icon: '📜' },
+  { value: 'instructor', label: 'Instruktor', icon: '🎓' },
+  { value: 'special', label: 'Posebno', icon: '✨' },
+]
+
+const rarities = [
+  { value: 'all', label: 'Sve Rijetkosti' },
+  { value: 'common', label: 'Uobičajeno' },
+  { value: 'uncommon', label: 'Neuobičajeno' },
+  { value: 'rare', label: 'Rijetko' },
+  { value: 'epic', label: 'Epsko' },
+  { value: 'legendary', label: 'Legendarno' },
+]
 
 export default function AchievementsPage() {
   const { user } = useAuth()
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [selectedRarity, setSelectedRarity] = useState('all')
+  const [showOnlyCompleted, setShowOnlyCompleted] = useState(false)
+  const [activeTab, setActiveTab] = useState<'achievements' | 'leaderboard'>(
+    'achievements'
+  )
 
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['user-stats'],
+  // Fetch user's achievements
+  const { data: achievements, isLoading: achievementsLoading } = useQuery<Achievement[]>({
+    queryKey: ['my-achievements'],
     queryFn: async () => {
-      const response = await api.get('/my-stats')
+      const response = await api.get('/achievements/my-achievements')
       return response.data.data
     },
     enabled: !!user,
   })
 
-  const { data: allAchievements } = useQuery({
-    queryKey: ['all-achievements'],
+  // Fetch user stats
+  const { data: userStats } = useQuery<UserStats>({
+    queryKey: ['achievement-stats'],
     queryFn: async () => {
-      const response = await api.get('/achievements')
+      const response = await api.get('/achievements/my-stats')
       return response.data.data
     },
+    enabled: !!user,
   })
 
-  const { data: allBadges } = useQuery({
-    queryKey: ['all-badges'],
+  // Fetch leaderboard
+  const { data: leaderboard } = useQuery<LeaderboardEntry[]>({
+    queryKey: ['leaderboard'],
     queryFn: async () => {
-      const response = await api.get('/badges')
+      const response = await api.get('/achievements/leaderboard?limit=10')
       return response.data.data
     },
   })
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="max-w-md w-full">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
           <CardContent className="pt-6 text-center">
-            <h2 className="text-2xl font-bold mb-4">Potrebna prijava</h2>
-            <p className="text-gray-600 mb-6">
+            <h2 className="mb-4 text-2xl font-bold">Potrebna prijava</h2>
+            <p className="mb-6 text-gray-600">
               Morate biti prijavljeni da biste vidjeli svoja postignuća.
             </p>
             <Button asChild>
@@ -56,207 +130,199 @@ export default function AchievementsPage() {
     )
   }
 
-  if (isLoading) {
+  // Filter achievements
+  const filteredAchievements = achievements?.filter((achievement) => {
+    const definition = achievement.definition
+    if (!definition) return false
+
+    if (selectedCategory !== 'all' && definition.category !== selectedCategory) {
+      return false
+    }
+
+    if (selectedRarity !== 'all' && definition.rarity !== selectedRarity) {
+      return false
+    }
+
+    if (showOnlyCompleted && !achievement.userProgress?.isCompleted) {
+      return false
+    }
+
+    return true
+  })
+
+  // Calculate stats
+  const totalAchievements = achievements?.length || 0
+  const completedAchievements =
+    achievements?.filter((a) => a.userProgress?.isCompleted).length || 0
+  const totalPoints = achievements?.reduce((sum, a) => sum + a.points, 0) || 0
+  const earnedPoints =
+    achievements
+      ?.filter((a) => a.userProgress?.isCompleted)
+      .reduce((sum, a) => sum + a.points, 0) || 0
+
+  if (achievementsLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="container mx-auto max-w-7xl px-4 py-12">
+        <div className="flex min-h-[400px] items-center justify-center">
+          <div className="text-center">
+            <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+            <p className="text-gray-600">Učitavanje postignuća...</p>
+          </div>
+        </div>
       </div>
     )
   }
 
-  const userAchievements = stats?.achievements || []
-  const userBadges = stats?.badges || []
-  const userStats = stats?.stats || {}
-
-  const achievementIds = new Set(userAchievements.map((ua: any) => ua.achievementId))
-  const badgeIds = new Set(userBadges.map((ub: any) => ub.badgeId))
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-yellow-500 to-orange-600 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl">
-            <h1 className="text-4xl font-bold mb-4">Postignuća i bedževi</h1>
-            <p className="text-xl text-yellow-100">
-              Pratite svoj napredak i osvajajte nova postignuća
-            </p>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 py-12">
+      <div className="container mx-auto max-w-7xl px-4">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <h1 className="mb-4 text-4xl font-bold text-gray-900">
+            🏆 Postignuća & Nagrade
+          </h1>
+          <p className="text-lg text-gray-600">
+            Pratite svoj napredak i otključajte nova postignuća
+          </p>
         </div>
-      </div>
 
-      {/* Stats Cards */}
-      <div className="container mx-auto px-4 -mt-8 mb-8">
-        <div className="grid md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold text-yellow-600">
-                    {userStats.totalPoints || 0}
-                  </div>
-                  <div className="text-sm text-gray-600">Ukupno bodova</div>
-                </div>
-                <Star className="h-12 w-12 text-yellow-400" />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Stats */}
+        <AchievementStats
+          totalAchievements={totalAchievements}
+          completedAchievements={completedAchievements}
+          totalPoints={totalPoints}
+          earnedPoints={earnedPoints}
+          level={userStats?.stats?.level}
+          currentStreak={userStats?.stats?.currentStreak}
+          longestStreak={userStats?.stats?.longestStreak}
+        />
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold text-blue-600">
-                    Level {userStats.level || 1}
-                  </div>
-                  <div className="text-sm text-gray-600">Trenutni nivo</div>
-                </div>
-                <TrendingUp className="h-12 w-12 text-blue-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold text-purple-600">
-                    {userAchievements.length}
-                  </div>
-                  <div className="text-sm text-gray-600">Postignuća</div>
-                </div>
-                <Award className="h-12 w-12 text-purple-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold text-orange-600">
-                    {userBadges.length}
-                  </div>
-                  <div className="text-sm text-gray-600">Bedževi</div>
-                </div>
-                <Trophy className="h-12 w-12 text-orange-400" />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Tabs */}
+        <div className="mb-6 flex gap-2 border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('achievements')}
+            className={`px-6 py-3 font-semibold transition-all ${
+              activeTab === 'achievements'
+                ? 'border-b-2 border-blue-600 text-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Postignuća
+          </button>
+          <button
+            onClick={() => setActiveTab('leaderboard')}
+            className={`px-6 py-3 font-semibold transition-all ${
+              activeTab === 'leaderboard'
+                ? 'border-b-2 border-blue-600 text-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Ljestvica
+          </button>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 pb-8">
-        <Tabs defaultValue="achievements" className="w-full">
-          <TabsList className="grid w-full md:w-[400px] grid-cols-2">
-            <TabsTrigger value="achievements">Postignuća</TabsTrigger>
-            <TabsTrigger value="badges">Bedževi</TabsTrigger>
-          </TabsList>
+        {activeTab === 'achievements' ? (
+          <>
+            {/* Filters */}
+            <div className="mb-6 rounded-xl bg-white p-6 shadow-md">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                {/* Category Filter */}
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Kategorija
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.value}
+                        onClick={() => setSelectedCategory(cat.value)}
+                        className={`rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                          selectedCategory === cat.value
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {cat.icon} {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-          {/* Achievements Tab */}
-          <TabsContent value="achievements" className="space-y-6">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {allAchievements?.map((achievement: any) => {
-                const isUnlocked = achievementIds.has(achievement.id)
-                const userAchievement = userAchievements.find(
-                  (ua: any) => ua.achievementId === achievement.id
-                )
+                {/* Rarity Filter */}
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Rijetkost
+                  </label>
+                  <select
+                    value={selectedRarity}
+                    onChange={(e) => setSelectedRarity(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {rarities.map((rarity) => (
+                      <option key={rarity.value} value={rarity.value}>
+                        {rarity.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Show Only Completed */}
+                <div className="flex items-end">
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={showOnlyCompleted}
+                      onChange={(e) => setShowOnlyCompleted(e.target.checked)}
+                      className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      Prikaži samo otključana
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Achievement Grid */}
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredAchievements?.map((achievement) => {
+                const definition = achievement.definition
+                if (!definition) return null
 
                 return (
-                  <Card
+                  <AchievementCard
                     key={achievement.id}
-                    className={`${
-                      isUnlocked
-                        ? 'border-yellow-400 border-2 bg-gradient-to-br from-yellow-50 to-white'
-                        : 'opacity-60'
-                    }`}
-                  >
-                    <CardHeader>
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="text-4xl">{achievement.icon || '🏆'}</div>
-                        {!isUnlocked && <Lock className="h-5 w-5 text-gray-400" />}
-                      </div>
-                      <CardTitle className="flex items-center gap-2">
-                        {achievement.name}
-                        {isUnlocked && <Award className="h-5 w-5 text-yellow-600" />}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-gray-600 mb-4">{achievement.description}</p>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium text-yellow-600">
-                          +{achievement.points} bodova
-                        </span>
-                        {isUnlocked && userAchievement && (
-                          <span className="text-gray-500">
-                            {formatDate(userAchievement.earnedAt)}
-                          </span>
-                        )}
-                      </div>
-                      {!isUnlocked && (
-                        <div className="mt-3 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                          {achievement._count.userAchievements} korisnika otključalo
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                    name={definition.name}
+                    description={definition.description}
+                    icon={definition.icon}
+                    points={definition.points}
+                    rarity={definition.rarity}
+                    category={definition.category}
+                    progress={achievement.userProgress?.progress}
+                    isCompleted={achievement.userProgress?.isCompleted}
+                    completedAt={achievement.userProgress?.completedAt}
+                  />
                 )
               })}
             </div>
-          </TabsContent>
 
-          {/* Badges Tab */}
-          <TabsContent value="badges" className="space-y-6">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {allBadges?.map((badge: any) => {
-                const isUnlocked = badgeIds.has(badge.id)
-                const userBadge = userBadges.find((ub: any) => ub.badgeId === badge.id)
-
-                return (
-                  <Card
-                    key={badge.id}
-                    className={`${
-                      isUnlocked
-                        ? 'border-orange-400 border-2 bg-gradient-to-br from-orange-50 to-white'
-                        : 'opacity-60'
-                    }`}
-                  >
-                    <CardHeader>
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="text-4xl">{badge.icon || '🎖️'}</div>
-                        {!isUnlocked && <Lock className="h-5 w-5 text-gray-400" />}
-                      </div>
-                      <CardTitle className="flex items-center gap-2">
-                        {badge.name}
-                        {isUnlocked && <Trophy className="h-5 w-5 text-orange-600" />}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-gray-600 mb-2">{badge.description}</p>
-                      <div className="mb-4 text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded inline-block">
-                        {badge.type}
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium text-orange-600">
-                          +{badge.pointsValue} bodova
-                        </span>
-                        {isUnlocked && userBadge && (
-                          <span className="text-gray-500">{formatDate(userBadge.earnedAt)}</span>
-                        )}
-                      </div>
-                      {!isUnlocked && (
-                        <div className="mt-3 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                          {badge._count.userBadges} korisnika osvojilo
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </TabsContent>
-        </Tabs>
+            {/* Empty State */}
+            {filteredAchievements?.length === 0 && (
+              <div className="rounded-xl bg-white p-12 text-center shadow-md">
+                <div className="mb-4 text-6xl">🎯</div>
+                <h3 className="mb-2 text-xl font-bold text-gray-900">
+                  Nema postignuća
+                </h3>
+                <p className="text-gray-600">
+                  Pokušajte promijeniti filtere ili nastavite učiti da
+                  otključate nova postignuća!
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          <Leaderboard entries={leaderboard || []} currentUserId={user.id} />
+        )}
       </div>
     </div>
   )
