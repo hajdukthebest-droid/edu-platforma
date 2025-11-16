@@ -65,6 +65,73 @@ async function main() {
   })
   console.log('✅ Learner created:', learner.email)
 
+  // Create additional instructors
+  const instructor2 = await prisma.user.upsert({
+    where: { email: 'dr.kovac@edu-platforma.hr' },
+    update: {},
+    create: {
+      email: 'dr.kovac@edu-platforma.hr',
+      password: instructorPassword,
+      firstName: 'Ivana',
+      lastName: 'Kovač',
+      role: UserRole.INSTRUCTOR,
+      isVerified: true,
+      isActive: true,
+      profession: 'Specijalist biokemije',
+      organization: 'Medicinski fakultet Zagreb',
+    },
+  })
+  console.log('✅ Instructor 2 created:', instructor2.email)
+
+  const instructor3 = await prisma.user.upsert({
+    where: { email: 'prof.novak@edu-platforma.hr' },
+    update: {},
+    create: {
+      email: 'prof.novak@edu-platforma.hr',
+      password: instructorPassword,
+      firstName: 'Ivan',
+      lastName: 'Novak',
+      role: UserRole.INSTRUCTOR,
+      isVerified: true,
+      isActive: true,
+      profession: 'Profesor kardiologije',
+      organization: 'KBC Zagreb',
+    },
+  })
+  console.log('✅ Instructor 3 created:', instructor3.email)
+
+  // Create additional learners
+  const learner2 = await prisma.user.upsert({
+    where: { email: 'student1@test.com' },
+    update: {},
+    create: {
+      email: 'student1@test.com',
+      password: learnerPassword,
+      firstName: 'Petra',
+      lastName: 'Jurić',
+      role: UserRole.LEARNER,
+      isVerified: true,
+      isActive: true,
+      profession: 'Student farmacije',
+    },
+  })
+
+  const learner3 = await prisma.user.upsert({
+    where: { email: 'student2@test.com' },
+    update: {},
+    create: {
+      email: 'student2@test.com',
+      password: learnerPassword,
+      firstName: 'Luka',
+      lastName: 'Marić',
+      role: UserRole.LEARNER,
+      isVerified: true,
+      isActive: true,
+      profession: 'Magistar farmacije',
+    },
+  })
+  console.log('✅ Additional learners created: 2')
+
   // Create categories
   const categories = await Promise.all([
     prisma.category.upsert({
@@ -210,6 +277,173 @@ async function main() {
   })
   console.log('✅ Lessons created')
 
+  // Create additional courses
+  const course2 = await prisma.course.upsert({
+    where: { slug: 'klinicka-biokemija' },
+    update: {},
+    create: {
+      title: 'Klinička biokemija',
+      slug: 'klinicka-biokemija',
+      description: 'Praktična primjena biokemije u medicinskoj dijagnostici i liječenju bolesti.',
+      shortDescription: 'Biokemija u kliničkoj praksi',
+      thumbnail: '/images/courses/biokemija-thumb.jpg',
+      level: CourseLevel.INTERMEDIATE,
+      status: CourseStatus.PUBLISHED,
+      duration: 360,
+      price: 249.99,
+      tags: ['biokemija', 'dijagnostika', 'laboratorij'],
+      learningObjectives: [
+        'Tumačenje laboratorijskih nalaza',
+        'Razumijevanje metaboličkih procesa',
+        'Primjena u dijagnostici bolesti',
+      ],
+      pointsReward: 600,
+      cpdPoints: 10,
+      creatorId: instructor2.id,
+      categoryId: categories[1].id,
+      publishedAt: new Date(),
+    },
+  })
+
+  const course3 = await prisma.course.upsert({
+    where: { slug: 'osnove-kardiologije' },
+    update: {},
+    create: {
+      title: 'Osnove kardiologije',
+      slug: 'osnove-kardiologije',
+      description: 'Kompletna edukacija o kardiovaskularnim bolestima, dijagnostici i liječenju.',
+      shortDescription: 'Sve što trebate znati o srčanim bolestima',
+      thumbnail: '/images/courses/kardiologija-thumb.jpg',
+      level: CourseLevel.INTERMEDIATE,
+      status: CourseStatus.PUBLISHED,
+      duration: 600,
+      price: 349.99,
+      tags: ['kardiologija', 'srce', 'dijagnostika'],
+      learningObjectives: [
+        'Razumijevanje srčanih bolesti',
+        'EKG interpretacija',
+        'Terapijski pristupi',
+        'Prevencija kardiovaskularnih bolesti',
+      ],
+      pointsReward: 800,
+      cpdPoints: 12,
+      creatorId: instructor3.id,
+      categoryId: categories[2].id,
+      publishedAt: new Date(),
+    },
+  })
+
+  const course4 = await prisma.course.upsert({
+    where: { slug: 'napredna-farmakologija' },
+    update: {},
+    create: {
+      title: 'Napredna farmakologija',
+      slug: 'napredna-farmakologija',
+      description: 'Detaljan pregled farmakologije sa fokusom na mehanizme djelovanja lijekova.',
+      shortDescription: 'Sveobuhvatan kurs o lijekovima i njihovom djelovanju',
+      thumbnail: '/images/courses/napredna-farm-thumb.jpg',
+      level: CourseLevel.ADVANCED,
+      status: CourseStatus.PUBLISHED,
+      duration: 480,
+      price: 299.99,
+      tags: ['farmakologija', 'lijekovi', 'napredni'],
+      learningObjectives: [
+        'Razumijevanje mehanizama djelovanja lijekova',
+        'Poznavanje farmakokinetike i farmakodinamike',
+        'Primjena farmakoloških principa u praksi',
+      ],
+      pointsReward: 700,
+      cpdPoints: 10,
+      creatorId: instructor.id,
+      categoryId: categories[0].id,
+      publishedAt: new Date(),
+    },
+  })
+  console.log('✅ Additional courses created: 3')
+
+  // Create enrollments
+  const enrollments = await Promise.all([
+    prisma.enrollment.create({
+      data: {
+        userId: learner.id,
+        courseId: course.id,
+        progress: 35,
+        enrolledAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.enrollment.create({
+      data: {
+        userId: learner2.id,
+        courseId: course.id,
+        progress: 65,
+        enrolledAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.enrollment.create({
+      data: {
+        userId: learner2.id,
+        courseId: course2.id,
+        progress: 20,
+        enrolledAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.enrollment.create({
+      data: {
+        userId: learner3.id,
+        courseId: course3.id,
+        progress: 80,
+        enrolledAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.enrollment.create({
+      data: {
+        userId: learner.id,
+        courseId: course4.id,
+        progress: 100,
+        completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        enrolledAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
+      },
+    }),
+  ])
+  console.log('✅ Enrollments created:', enrollments.length)
+
+  // Create reviews
+  await Promise.all([
+    prisma.review.create({
+      data: {
+        rating: 5,
+        comment: 'Odličan kurs! Sve jasno objašnjeno, instruktor je vrhunski. Preporučujem svima.',
+        userId: learner.id,
+        courseId: course4.id,
+      },
+    }),
+    prisma.review.create({
+      data: {
+        rating: 4,
+        comment: 'Jako dobar sadržaj, ali bi moglo biti više praktičnih primjera.',
+        userId: learner2.id,
+        courseId: course.id,
+      },
+    }),
+    prisma.review.create({
+      data: {
+        rating: 5,
+        comment: 'Najbolji kurs o kardiologiji koji sam pohađao. Prof. Novak je izvrstan predavač.',
+        userId: learner3.id,
+        courseId: course3.id,
+      },
+    }),
+    prisma.review.create({
+      data: {
+        rating: 5,
+        comment: 'Kompletan i detaljan kurs. Baš ono što mi je trebalo za specijalizaciju.',
+        userId: learner.id,
+        courseId: course.id,
+      },
+    }),
+  ])
+  console.log('✅ Reviews created: 4')
+
   // Create badges
   const badges = await Promise.all([
     prisma.badge.create({
@@ -267,7 +501,31 @@ async function main() {
   })
   console.log('✅ Forum categories created')
 
-  console.log('🎉 Seeding completed successfully!')
+  console.log('\n🎉 Seeding completed successfully!')
+  console.log('\n📋 Test Accounts:')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('👤 Admin:')
+  console.log('   Email: admin@edu-platforma.hr')
+  console.log('   Password: admin123')
+  console.log('\n👨‍🏫 Instructors:')
+  console.log('   Email: instructor@edu-platforma.hr | Password: instructor123')
+  console.log('   Email: dr.kovac@edu-platforma.hr | Password: instructor123')
+  console.log('   Email: prof.novak@edu-platforma.hr | Password: instructor123')
+  console.log('\n👨‍🎓 Learners:')
+  console.log('   Email: learner@edu-platforma.hr | Password: learner123')
+  console.log('   Email: student1@test.com | Password: learner123')
+  console.log('   Email: student2@test.com | Password: learner123')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('\n📊 Database Summary:')
+  console.log(`   • 7 users (1 admin, 3 instructors, 3 learners)`)
+  console.log(`   • Domains with categories`)
+  console.log(`   • 4 courses (BEGINNER to ADVANCED levels)`)
+  console.log(`   • Multiple modules and lessons`)
+  console.log(`   • 5 enrollments with progress tracking`)
+  console.log(`   • 4 course reviews`)
+  console.log(`   • 3 badges for achievements`)
+  console.log(`   • Forum categories`)
+  console.log('\n🚀 You can now login and test all features!')
 }
 
 main()
