@@ -81,11 +81,33 @@ export class CertificateController {
         return res.status(401).json({ status: 'error', message: 'Unauthorized' })
       }
 
-      const pdfData = await certificateService.generatePDF(req.params.id, req.user.id)
+      const pdfPath = await certificateService.downloadCertificatePDF(
+        req.params.id,
+        req.user.id
+      )
+
+      // Send PDF file as download
+      res.download(pdfPath, `certificate-${req.params.id}.pdf`, (err) => {
+        if (err) {
+          next(err)
+        }
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async generatePDF(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      await certificateService.generatePDF(req.params.id, req.user.id)
 
       res.json({
         status: 'success',
-        data: pdfData,
+        message: 'Certificate PDF generated successfully',
       })
     } catch (error) {
       next(error)

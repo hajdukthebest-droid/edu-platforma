@@ -1,5 +1,6 @@
 import { prisma } from '@edu-platforma/database'
 import { AppError } from '../middleware/errorHandler'
+import { certificateService } from './certificateService'
 
 export class ProgressService {
   async markLessonComplete(userId: string, lessonId: string) {
@@ -205,6 +206,14 @@ export class ProgressService {
           },
         },
       })
+    }
+
+    // Automatically issue certificate
+    try {
+      await certificateService.issueCertificate(userId, courseId)
+    } catch (error) {
+      // Log error but don't fail the completion process
+      console.error('Failed to issue certificate:', error)
     }
   }
 

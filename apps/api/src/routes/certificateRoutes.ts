@@ -19,6 +19,10 @@ router.post(
 )
 router.get('/', certificateController.getUserCertificates.bind(certificateController))
 router.get('/:id', certificateController.getCertificate.bind(certificateController))
+router.post(
+  '/:id/generate-pdf',
+  certificateController.generatePDF.bind(certificateController)
+)
 router.get('/:id/pdf', certificateController.downloadPDF.bind(certificateController))
 
 export default router
