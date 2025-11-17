@@ -123,6 +123,7 @@ model User {
   videoQuizResponses VideoQuizResponse[] @relation("VideoQuizResponses")
   flashcardDecks    FlashcardDeck[] @relation("FlashcardDecksCreated")
   flashcardReviews  FlashcardReview[] @relation("FlashcardReviews")
+  examSessions      ExamSession[] @relation("ExamSessions")
 
   @@index([email])
   @@index([role])
@@ -429,6 +430,17 @@ model Assessment {
   isPublished     Boolean        @default(false)
   randomizeQuestions Int?        // Number of random questions to show (null = all)
 
+  // Timed Exam Settings
+  isTimedExam     Boolean        @default(false) // Enable strict timing
+  autoSubmit      Boolean        @default(true)  // Auto-submit when time expires
+  showTimer       Boolean        @default(true)  // Display countdown timer
+  allowPause      Boolean        @default(false) // Allow pausing exam
+  proctorMode     Boolean        @default(false) // Enable proctoring features
+  requireFullscreen Boolean      @default(false) // Must be in fullscreen
+  preventCopyPaste Boolean       @default(false) // Block copy/paste
+  showOneQuestion Boolean        @default(false) // Show one question at a time
+  allowBackNavigation Boolean    @default(true)  // Can go back to previous questions
+
   // Timing
   availableFrom   DateTime?      // When quiz becomes available
   availableUntil  DateTime?      // When quiz expires
@@ -438,6 +450,7 @@ model Assessment {
 
   questions       Question[]
   attempts        AssessmentAttempt[]
+  examSessions    ExamSession[]
 
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -501,6 +514,12 @@ model AssessmentAttempt {
   gradedAt      DateTime?
   feedback      String?       // Overall feedback from instructor
 
+  // Timed Exam Tracking
+  remainingTime Int?          // seconds remaining (for paused exams)
+  pausedAt      DateTime?     // When exam was paused
+  pauseCount    Int           @default(0) // Number of times paused
+  warningsIssued Json?        // Array of proctoring warnings
+
   startedAt     DateTime      @default(now())
   completedAt   DateTime?
 
@@ -529,6 +548,54 @@ model QuestionAttempt {
   createdAt       DateTime          @default(now())
 
   @@map("question_attempts")
+}
+
+enum ExamSessionStatus {
+  ACTIVE        // Exam in progress
+  PAUSED        // Exam paused
+  COMPLETED     // Exam finished
+  EXPIRED       // Time ran out
+  ABANDONED     // User left without finishing
+}
+
+// Real-time tracking of active exam sessions
+model ExamSession {
+  id            String            @id @default(cuid())
+  assessmentId  String
+  attemptId     String?           // Link to attempt when created
+  userId        String
+
+  status        ExamSessionStatus @default(ACTIVE)
+
+  // Time tracking
+  timeLimit     Int               // Total time in seconds
+  timeRemaining Int               // Seconds remaining
+  timeElapsed   Int               @default(0) // Total time spent
+
+  // Session data
+  currentQuestion Int?            // Current question index (for one-at-a-time mode)
+  answers       Json?             // Temporary answers storage
+
+  // Proctoring data
+  fullscreenExits Int             @default(0) // Number of fullscreen exits
+  tabSwitches   Int               @default(0) // Number of tab switches
+  suspiciousActivity Json?        // Array of suspicious events
+
+  // Timestamps
+  startedAt     DateTime          @default(now())
+  lastActivity  DateTime          @default(now()) // Last action timestamp
+  pausedAt      DateTime?
+  completedAt   DateTime?
+  expiresAt     DateTime          // When session will auto-expire
+
+  // Relations
+  assessment    Assessment        @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  user          User              @relation("ExamSessions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([assessmentId])
+  @@index([status])
+  @@map("exam_sessions")
 }
 
 // ============================================
