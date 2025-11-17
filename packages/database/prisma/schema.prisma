@@ -121,6 +121,8 @@ model User {
   moduleVersions    ModuleVersion[] @relation("ModuleVersions")
   lessonVersions    LessonVersion[] @relation("LessonVersions")
   videoQuizResponses VideoQuizResponse[] @relation("VideoQuizResponses")
+  flashcardDecks    FlashcardDeck[] @relation("FlashcardDecksCreated")
+  flashcardReviews  FlashcardReview[] @relation("FlashcardReviews")
 
   @@index([email])
   @@index([role])
@@ -272,6 +274,7 @@ model Course {
   learningPaths     LearningPathCourse[]
   translations      CourseTranslation[]
   versions          CourseVersion[]
+  flashcardDecks    FlashcardDeck[]
 
   // Timestamps
   publishedAt       DateTime?
@@ -348,6 +351,7 @@ model Lesson {
   translations LessonTranslation[]
   versions     LessonVersion[]
   videoQuizzes VideoQuiz[]
+  flashcardDecks FlashcardDeck[]
 
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -1427,4 +1431,100 @@ model VideoQuizResponse {
   @@index([userId])
   @@index([videoQuizId])
   @@map("video_quiz_responses")
+}
+
+// ============================================
+// FLASHCARDS SYSTEM
+// ============================================
+
+model FlashcardDeck {
+  id          String   @id @default(cuid())
+
+  // Basic info
+  title       String
+  description String?
+
+  // Association
+  courseId    String?
+  lessonId    String?
+  createdById String
+
+  // Settings
+  isPublic    Boolean  @default(false)
+  tags        String[]
+
+  // Relations
+  course      Course?    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson      Lesson?    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  createdBy   User       @relation("FlashcardDecksCreated", fields: [createdById], references: [id])
+  flashcards  Flashcard[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([lessonId])
+  @@index([createdById])
+  @@map("flashcard_decks")
+}
+
+model Flashcard {
+  id          String   @id @default(cuid())
+  deckId      String
+
+  // Card content
+  front       String   // Question or term
+  back        String   // Answer or definition
+  hint        String?  // Optional hint
+  image       String?  // Optional image URL
+
+  // Ordering
+  orderIndex  Int
+
+  // Relations
+  deck        FlashcardDeck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  reviews     FlashcardReview[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([deckId])
+  @@map("flashcards")
+}
+
+enum ReviewDifficulty {
+  AGAIN     // Didn't remember
+  HARD      // Remembered with difficulty
+  GOOD      // Remembered correctly
+  EASY      // Remembered easily
+}
+
+model FlashcardReview {
+  id          String           @id @default(cuid())
+  userId      String
+  flashcardId String
+
+  // Review data
+  difficulty  ReviewDifficulty
+  timeSpent   Int?             // Seconds spent on card
+
+  // Spaced Repetition Algorithm (SM-2)
+  easeFactor  Float            // Ease factor (>=1.3)
+  interval    Int              // Days until next review
+  repetitions Int              // Number of successful reviews
+
+  // Next review date
+  nextReview  DateTime
+
+  // Relations
+  user        User      @relation("FlashcardReviews", fields: [userId], references: [id], onDelete: Cascade)
+  flashcard   Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  reviewedAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([flashcardId])
+  @@index([nextReview])
+  @@index([userId, nextReview])
+  @@map("flashcard_reviews")
 }

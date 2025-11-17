@@ -29,6 +29,7 @@ import mobileRoutes from './mobileRoutes'
 import analyticsRoutes from './analyticsRoutes'
 import versionRoutes from './versionRoutes'
 import videoQuizRoutes from './videoQuizRoutes'
+import flashcardRoutes from './flashcardRoutes'
 
 const router = Router()
 
@@ -64,6 +65,7 @@ router.use('/mobile', mobileRoutes)
 router.use('/analytics', analyticsRoutes)
 router.use('/versions', versionRoutes)
 router.use('/video-quizzes', videoQuizRoutes)
+router.use('/flashcards', flashcardRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -102,6 +104,7 @@ router.get('/', (req, res) => {
       analytics: '/api/analytics',
       versions: '/api/versions',
       videoQuizzes: '/api/video-quizzes',
+      flashcards: '/api/flashcards',
     },
   })
 })
