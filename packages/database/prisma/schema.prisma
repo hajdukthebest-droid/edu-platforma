@@ -120,6 +120,7 @@ model User {
   courseVersions    CourseVersion[] @relation("CourseVersions")
   moduleVersions    ModuleVersion[] @relation("ModuleVersions")
   lessonVersions    LessonVersion[] @relation("LessonVersions")
+  videoQuizResponses VideoQuizResponse[] @relation("VideoQuizResponses")
 
   @@index([email])
   @@index([role])
@@ -346,6 +347,7 @@ model Lesson {
   bookmarks    Bookmark[]
   translations LessonTranslation[]
   versions     LessonVersion[]
+  videoQuizzes VideoQuiz[]
 
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -1369,4 +1371,60 @@ model LessonVersion {
   @@unique([lessonId, version])
   @@index([lessonId])
   @@map("lesson_versions")
+}
+
+// ============================================
+// INTERACTIVE VIDEO QUIZZES
+// ============================================
+
+model VideoQuiz {
+  id          String   @id @default(cuid())
+  lessonId    String
+
+  // Quiz timing
+  timestamp   Int      // When to show quiz (in seconds from video start)
+
+  // Question content
+  question    String
+  options     String[] // Array of possible answers
+  correctAnswer Int    // Index of correct answer (0-based)
+  explanation String?  // Optional explanation shown after answering
+
+  // Settings
+  points      Int      @default(10)
+  isRequired  Boolean  @default(false) // Must answer to continue video
+  pauseVideo  Boolean  @default(true)  // Pause video when quiz appears
+
+  // Relations
+  lesson      Lesson             @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  responses   VideoQuizResponse[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([lessonId])
+  @@index([timestamp])
+  @@map("video_quizzes")
+}
+
+model VideoQuizResponse {
+  id          String   @id @default(cuid())
+  userId      String
+  videoQuizId String
+
+  // Response data
+  answer      Int      // Selected answer index
+  isCorrect   Boolean
+  timeSpent   Int?     // Seconds taken to answer
+
+  // Relations
+  user        User      @relation("VideoQuizResponses", fields: [userId], references: [id], onDelete: Cascade)
+  videoQuiz   VideoQuiz @relation(fields: [videoQuizId], references: [id], onDelete: Cascade)
+
+  answeredAt  DateTime @default(now())
+
+  @@unique([userId, videoQuizId])
+  @@index([userId])
+  @@index([videoQuizId])
+  @@map("video_quiz_responses")
 }

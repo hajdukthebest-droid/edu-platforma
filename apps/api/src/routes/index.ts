@@ -28,6 +28,7 @@ import aiRoutes from './aiRoutes'
 import mobileRoutes from './mobileRoutes'
 import analyticsRoutes from './analyticsRoutes'
 import versionRoutes from './versionRoutes'
+import videoQuizRoutes from './videoQuizRoutes'
 
 const router = Router()
 
@@ -62,6 +63,7 @@ router.use('/ai', aiRoutes)
 router.use('/mobile', mobileRoutes)
 router.use('/analytics', analyticsRoutes)
 router.use('/versions', versionRoutes)
+router.use('/video-quizzes', videoQuizRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -99,6 +101,7 @@ router.get('/', (req, res) => {
       mobile: '/api/mobile',
       analytics: '/api/analytics',
       versions: '/api/versions',
+      videoQuizzes: '/api/video-quizzes',
     },
   })
 })
