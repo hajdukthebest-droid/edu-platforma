@@ -135,6 +135,7 @@ model User {
   assignmentsCreated Assignment[] @relation("InstructorAssignments")
   submissions       AssignmentSubmission[] @relation("StudentSubmissions")
   peerReviews       PeerReview[] @relation("ReviewerReviews")
+  promoCodeUsages   PromoCodeUsage[] @relation("UserPromoUsages")
 
   @@index([email])
   @@index([role])
@@ -289,6 +290,7 @@ model Course {
   flashcardDecks    FlashcardDeck[]
   studyGroups       StudyGroup[]
   assignments       Assignment[]  @relation("CourseAssignments")
+  bundles           BundleCourse[] @relation("BundleCourses")
 
   // Timestamps
   publishedAt       DateTime?
@@ -1014,12 +1016,20 @@ model Payment {
   // What was purchased
   courseId        String?
   subscriptionId  String?
+  bundleId        String?
+
+  // Discount applied
+  originalAmount  Decimal?      @db.Decimal(10, 2)
+  discountAmount  Decimal?      @db.Decimal(10, 2)
 
   user            User          @relation(fields: [userId], references: [id])
+  bundle          CourseBundle? @relation("BundlePayments", fields: [bundleId], references: [id])
+  promoCodeUsage  PromoCodeUsage? @relation("PaymentPromoUsage")
 
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  @@index([bundleId])
   @@map("payments")
 }
 
@@ -2047,4 +2057,132 @@ model PeerReviewScore {
   @@unique([reviewId, criteriaId])
   @@index([reviewId])
   @@map("peer_review_scores")
+}
+
+// ============================================
+// COURSE BUNDLES & PROMO CODES
+// ============================================
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum PromoCodeStatus {
+  ACTIVE
+  EXPIRED
+  DISABLED
+}
+
+model CourseBundle {
+  id              String         @id @default(cuid())
+  name            String
+  slug            String         @unique
+  description     String?
+  thumbnail       String?
+
+  // Pricing
+  originalPrice   Decimal        @db.Decimal(10, 2) // Sum of individual course prices
+  discountedPrice Decimal        @db.Decimal(10, 2) // Bundle price
+  savingsPercent  Float          @default(0) // Calculated savings percentage
+
+  // Settings
+  isPublished     Boolean        @default(false)
+  isLimited       Boolean        @default(false) // Limited time offer
+  startDate       DateTime?
+  endDate         DateTime?
+  maxPurchases    Int?           // Maximum number of purchases allowed
+
+  // Stats
+  purchaseCount   Int            @default(0)
+
+  // Relations
+  courses         BundleCourse[]
+  payments        Payment[]      @relation("BundlePayments")
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([slug])
+  @@index([isPublished])
+  @@map("course_bundles")
+}
+
+model BundleCourse {
+  id              String       @id @default(cuid())
+  bundleId        String
+  courseId        String
+  orderIndex      Int          @default(0)
+
+  // Relations
+  bundle          CourseBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  course          Course       @relation("BundleCourses", fields: [courseId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime     @default(now())
+
+  @@unique([bundleId, courseId])
+  @@index([bundleId])
+  @@index([courseId])
+  @@map("bundle_courses")
+}
+
+model PromoCode {
+  id              String          @id @default(cuid())
+  code            String          @unique
+  description     String?
+
+  // Discount settings
+  discountType    DiscountType    @default(PERCENTAGE)
+  discountValue   Decimal         @db.Decimal(10, 2) // Percentage (0-100) or fixed amount
+  minPurchase     Decimal?        @db.Decimal(10, 2) // Minimum purchase amount to apply
+  maxDiscount     Decimal?        @db.Decimal(10, 2) // Maximum discount cap for percentage
+
+  // Validity
+  status          PromoCodeStatus @default(ACTIVE)
+  startDate       DateTime        @default(now())
+  endDate         DateTime?
+
+  // Usage limits
+  usageLimit      Int?            // Total uses allowed (null = unlimited)
+  perUserLimit    Int             @default(1) // Uses per user
+  usageCount      Int             @default(0) // Current usage count
+
+  // Restrictions
+  courseIds       String[]        @default([]) // Empty = applies to all courses
+  bundleIds       String[]        @default([]) // Empty = applies to all bundles
+  userIds         String[]        @default([]) // Empty = available to all users
+  newUsersOnly    Boolean         @default(false) // Only for first-time buyers
+
+  // Relations
+  usages          PromoCodeUsage[]
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([code])
+  @@index([status])
+  @@map("promo_codes")
+}
+
+model PromoCodeUsage {
+  id              String    @id @default(cuid())
+  promoCodeId     String
+  userId          String
+  paymentId       String?
+
+  // Applied discount
+  discountAmount  Decimal   @db.Decimal(10, 2)
+  originalAmount  Decimal   @db.Decimal(10, 2)
+  finalAmount     Decimal   @db.Decimal(10, 2)
+
+  // Relations
+  promoCode       PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  user            User      @relation("UserPromoUsages", fields: [userId], references: [id])
+  payment         Payment?  @relation("PaymentPromoUsage", fields: [paymentId], references: [id])
+
+  usedAt          DateTime  @default(now())
+
+  @@index([promoCodeId])
+  @@index([userId])
+  @@map("promo_code_usages")
 }

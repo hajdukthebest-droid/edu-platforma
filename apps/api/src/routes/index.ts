@@ -34,6 +34,7 @@ import timedExamRoutes from './timedExamRoutes'
 import studyGroupRoutes from './studyGroupRoutes'
 import streakRoutes from './streakRoutes'
 import peerReviewRoutes from './peerReviewRoutes'
+import bundleRoutes from './bundleRoutes'
 
 const router = Router()
 
@@ -74,6 +75,7 @@ router.use('/timed-exams', timedExamRoutes)
 router.use('/study-groups', studyGroupRoutes)
 router.use('/streaks', streakRoutes)
 router.use('/peer-reviews', peerReviewRoutes)
+router.use('/shop', bundleRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -117,6 +119,7 @@ router.get('/', (req, res) => {
       studyGroups: '/api/study-groups',
       streaks: '/api/streaks',
       peerReviews: '/api/peer-reviews',
+      shop: '/api/shop',
     },
   })
 })
