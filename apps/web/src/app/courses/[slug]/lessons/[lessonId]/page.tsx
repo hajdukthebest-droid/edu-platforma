@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import VideoPlayer from '@/components/video/VideoPlayer'
+import { VideoQuizOverlay } from '@/components/VideoQuizOverlay'
 import api from '@/lib/api'
 import {
   BookOpen,
@@ -62,6 +63,9 @@ export default function LessonPage({
   const router = useRouter()
   const queryClient = useQueryClient()
   const [showCompletionCongrats, setShowCompletionCongrats] = useState(false)
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0)
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false)
+  const [isVideoPaused, setIsVideoPaused] = useState(false)
 
   // Fetch lesson data
   const { data: lesson, isLoading } = useQuery<Lesson>({
@@ -194,16 +198,26 @@ export default function LessonPage({
               </Card>
             )}
 
-            {/* Video Player */}
+            {/* Video Player with Quiz Overlay */}
             {lesson.type === 'VIDEO' && lesson.videoUrl && (
               <Card className="mb-6">
-                <CardContent className="p-0">
+                <CardContent className="p-0 relative">
                   <VideoPlayer
                     lessonId={lesson.id}
                     videoUrl={lesson.videoUrl}
                     videoProvider={lesson.videoProvider || 'self-hosted'}
                     initialPosition={progress?.lastPosition || 0}
                     onComplete={handleVideoComplete}
+                    onTimeUpdate={setVideoCurrentTime}
+                    onPlayingChange={setIsVideoPlaying}
+                    externalPause={isVideoPaused}
+                  />
+                  <VideoQuizOverlay
+                    lessonId={lesson.id}
+                    currentTime={videoCurrentTime}
+                    onPauseVideo={() => setIsVideoPaused(true)}
+                    onResumeVideo={() => setIsVideoPaused(false)}
+                    isVideoPlaying={isVideoPlaying && !isVideoPaused}
                   />
                 </CardContent>
               </Card>

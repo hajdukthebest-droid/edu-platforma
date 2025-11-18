@@ -14,8 +14,13 @@ interface VideoPlayerProps {
   poster?: string
   onProgress?: (currentTime: number, duration: number) => void
   onComplete?: () => void
+  onTimeUpdate?: (currentTime: number) => void
+  onPlayingChange?: (isPlaying: boolean) => void
   initialPosition?: number
   autoplay?: boolean
+  externalPause?: boolean
+  onPauseRequest?: () => void
+  onResumeRequest?: () => void
 }
 
 export default function VideoPlayer({
@@ -25,8 +30,13 @@ export default function VideoPlayer({
   poster,
   onProgress,
   onComplete,
+  onTimeUpdate,
+  onPlayingChange,
   initialPosition = 0,
   autoplay = false,
+  externalPause,
+  onPauseRequest,
+  onResumeRequest,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<Player | null>(null)
@@ -35,6 +45,17 @@ export default function VideoPlayer({
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastSavedPositionRef = useRef<number>(0)
   const { toast } = useToast()
+
+  // Handle external pause/resume requests
+  useEffect(() => {
+    if (playerRef.current && externalPause !== undefined) {
+      if (externalPause) {
+        playerRef.current.pause()
+      } else {
+        playerRef.current.play()
+      }
+    }
+  }, [externalPause])
 
   // Save progress to backend
   const saveProgress = useCallback(
@@ -137,6 +158,8 @@ export default function VideoPlayer({
           setHasStarted(true)
         }
 
+        onPlayingChange?.(true)
+
         // Start progress tracking interval
         progressIntervalRef.current = setInterval(() => {
           const currentTime = player.currentTime() || 0
@@ -155,6 +178,12 @@ export default function VideoPlayer({
         }, 5000) // Save every 5 seconds
       })
 
+      // Time update for quiz triggers
+      player.on('timeupdate', () => {
+        const currentTime = player.currentTime() || 0
+        onTimeUpdate?.(currentTime)
+      })
+
       player.on('pause', () => {
         // Clear interval
         if (progressIntervalRef.current) {
@@ -162,10 +191,20 @@ export default function VideoPlayer({
           progressIntervalRef.current = null
         }
 
+        onPlayingChange?.(false)
+
         // Save progress immediately on pause
         const currentTime = player.currentTime() || 0
         saveProgress(currentTime)
       })
+
+      // Expose pause/resume methods for external control (quiz overlay)
+      if (onPauseRequest) {
+        ;(player as any).externalPause = () => player.pause()
+      }
+      if (onResumeRequest) {
+        ;(player as any).externalResume = () => player.play()
+      }
 
       player.on('ended', () => {
         // Clear interval
