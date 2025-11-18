@@ -1,9 +1,17 @@
 'use client'
 
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import api from '@/lib/api'
 import {
   LineChart,
@@ -19,6 +27,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  AreaChart,
+  Area,
 } from 'recharts'
 import {
   BookOpen,
@@ -28,13 +38,126 @@ import {
   Clock,
   Target,
   ArrowLeft,
+  Flame,
+  Calendar,
+  CheckCircle,
+  Trophy,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
 
+// Activity Heatmap Component
+function ActivityHeatmap({ data }: { data: any[] }) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec']
+  const days = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
+
+  // Create a map of dates to activity
+  const activityMap = new Map(
+    data.map((item) => [item.date, item])
+  )
+
+  // Generate all days for the year
+  const year = new Date().getFullYear()
+  const startDate = new Date(year, 0, 1)
+  const endDate = new Date(year, 11, 31)
+  const weeks: Date[][] = []
+  let currentWeek: Date[] = []
+
+  // Adjust start to Monday
+  const firstDay = startDate.getDay()
+  const startOffset = firstDay === 0 ? 6 : firstDay - 1
+  for (let i = 0; i < startOffset; i++) {
+    currentWeek.push(new Date(0)) // placeholder
+  }
+
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    currentWeek.push(new Date(d))
+    if (currentWeek.length === 7) {
+      weeks.push(currentWeek)
+      currentWeek = []
+    }
+  }
+  if (currentWeek.length > 0) {
+    weeks.push(currentWeek)
+  }
+
+  const getColor = (date: Date) => {
+    if (date.getTime() === 0) return 'transparent'
+    const dateStr = date.toISOString().split('T')[0]
+    const activity = activityMap.get(dateStr)
+    if (!activity) return '#ebedf0'
+    if (activity.count === 0) return '#ebedf0'
+    const minutes = activity.minutesLearned || 0
+    if (minutes >= 60) return '#216e39'
+    if (minutes >= 30) return '#30a14e'
+    if (minutes >= 15) return '#40c463'
+    return '#9be9a8'
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <div className="min-w-[800px]">
+        {/* Month labels */}
+        <div className="flex mb-2 ml-8">
+          {months.map((month, i) => (
+            <div key={month} className="flex-1 text-xs text-gray-500">
+              {month}
+            </div>
+          ))}
+        </div>
+        {/* Grid */}
+        <div className="flex gap-1">
+          {/* Day labels */}
+          <div className="flex flex-col gap-1 mr-1">
+            {days.map((day, i) => (
+              <div
+                key={day}
+                className="h-3 text-xs text-gray-500 flex items-center"
+                style={{ visibility: i % 2 === 0 ? 'visible' : 'hidden' }}
+              >
+                {day}
+              </div>
+            ))}
+          </div>
+          {/* Weeks */}
+          {weeks.map((week, weekIndex) => (
+            <div key={weekIndex} className="flex flex-col gap-1">
+              {week.map((day, dayIndex) => (
+                <div
+                  key={dayIndex}
+                  className="w-3 h-3 rounded-sm"
+                  style={{ backgroundColor: getColor(day) }}
+                  title={
+                    day.getTime() !== 0
+                      ? `${day.toLocaleDateString('hr-HR')}: ${
+                          activityMap.get(day.toISOString().split('T')[0])?.minutesLearned || 0
+                        } min`
+                      : ''
+                  }
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+        {/* Legend */}
+        <div className="flex items-center justify-end gap-1 mt-2 text-xs text-gray-500">
+          <span>Manje</span>
+          <div className="w-3 h-3 rounded-sm bg-[#ebedf0]" />
+          <div className="w-3 h-3 rounded-sm bg-[#9be9a8]" />
+          <div className="w-3 h-3 rounded-sm bg-[#40c463]" />
+          <div className="w-3 h-3 rounded-sm bg-[#30a14e]" />
+          <div className="w-3 h-3 rounded-sm bg-[#216e39]" />
+          <span>Više</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function PersonalAnalyticsPage() {
   const { user } = useAuth()
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
   const { data: statsData, isLoading } = useQuery({
     queryKey: ['user-stats'],
@@ -49,6 +172,36 @@ export default function PersonalAnalyticsPage() {
     queryKey: ['my-enrollments'],
     queryFn: async () => {
       const response = await api.get('/progress/my-enrollments')
+      return response.data.data
+    },
+    enabled: !!user,
+  })
+
+  // Streak data
+  const { data: streakData } = useQuery({
+    queryKey: ['user-streak'],
+    queryFn: async () => {
+      const response = await api.get('/streaks')
+      return response.data.data
+    },
+    enabled: !!user,
+  })
+
+  // Activity heatmap data
+  const { data: heatmapData } = useQuery({
+    queryKey: ['activity-heatmap', selectedYear],
+    queryFn: async () => {
+      const response = await api.get(`/dashboard/activity-heatmap/${selectedYear}`)
+      return response.data.data
+    },
+    enabled: !!user,
+  })
+
+  // Weekly progress
+  const { data: weeklyProgressData } = useQuery({
+    queryKey: ['weekly-progress'],
+    queryFn: async () => {
+      const response = await api.get('/dashboard/weekly-progress?weeks=12')
       return response.data.data
     },
     enabled: !!user,
@@ -171,6 +324,148 @@ export default function PersonalAnalyticsPage() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
+          {/* Streak Stats */}
+          {streakData && (
+            <div className="grid md:grid-cols-4 gap-6 mb-8">
+              <Card className="bg-gradient-to-br from-orange-50 to-orange-100">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-3xl font-bold text-orange-600">
+                        {streakData.currentStreak || 0}
+                      </div>
+                      <div className="text-sm text-orange-700 mt-1">Trenutni niz</div>
+                    </div>
+                    <Flame className="h-12 w-12 text-orange-400" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-3xl font-bold text-purple-600">
+                        {streakData.longestStreak || 0}
+                      </div>
+                      <div className="text-sm text-gray-600 mt-1">Najduži niz</div>
+                    </div>
+                    <Trophy className="h-12 w-12 text-purple-400" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-3xl font-bold text-blue-600">
+                        {streakData.totalDaysActive || 0}
+                      </div>
+                      <div className="text-sm text-gray-600 mt-1">Aktivnih dana</div>
+                    </div>
+                    <Calendar className="h-12 w-12 text-blue-400" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-3xl font-bold text-green-600">
+                        {streakData.totalLessonsCompleted || 0}
+                      </div>
+                      <div className="text-sm text-gray-600 mt-1">Završenih lekcija</div>
+                    </div>
+                    <CheckCircle className="h-12 w-12 text-green-400" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Activity Heatmap */}
+          {heatmapData && (
+            <Card className="mb-8">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Aktivnost učenja
+                    </CardTitle>
+                    <CardDescription>Vaša dnevna aktivnost kroz godinu</CardDescription>
+                  </div>
+                  <Select
+                    value={selectedYear.toString()}
+                    onValueChange={(v) => setSelectedYear(parseInt(v))}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={(new Date().getFullYear()).toString()}>
+                        {new Date().getFullYear()}
+                      </SelectItem>
+                      <SelectItem value={(new Date().getFullYear() - 1).toString()}>
+                        {new Date().getFullYear() - 1}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ActivityHeatmap data={heatmapData} />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Weekly Progress Chart */}
+          {weeklyProgressData && weeklyProgressData.length > 0 && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle>Tjedni napredak</CardTitle>
+                <CardDescription>Pregled učenja po tjednima</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={weeklyProgressData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="week"
+                      tickFormatter={(value) =>
+                        new Date(value).toLocaleDateString('hr-HR', { month: 'short', day: 'numeric' })
+                      }
+                      fontSize={11}
+                    />
+                    <YAxis />
+                    <Tooltip
+                      labelFormatter={(value) =>
+                        `Tjedan: ${new Date(value).toLocaleDateString('hr-HR')}`
+                      }
+                    />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="minutesLearned"
+                      name="Minute"
+                      stroke="#3b82f6"
+                      fill="#93c5fd"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="lessonsCompleted"
+                      name="Lekcije"
+                      stroke="#10b981"
+                      fill="#6ee7b7"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Stats Overview */}
           <div className="grid md:grid-cols-4 gap-6 mb-8">
             <Card>
