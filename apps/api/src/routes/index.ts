@@ -35,6 +35,7 @@ import studyGroupRoutes from './studyGroupRoutes'
 import streakRoutes from './streakRoutes'
 import peerReviewRoutes from './peerReviewRoutes'
 import bundleRoutes from './bundleRoutes'
+import studentDashboardRoutes from './studentDashboardRoutes'
 
 const router = Router()
 
@@ -76,6 +77,7 @@ router.use('/study-groups', studyGroupRoutes)
 router.use('/streaks', streakRoutes)
 router.use('/peer-reviews', peerReviewRoutes)
 router.use('/shop', bundleRoutes)
+router.use('/dashboard', studentDashboardRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -120,6 +122,7 @@ router.get('/', (req, res) => {
       streaks: '/api/streaks',
       peerReviews: '/api/peer-reviews',
       shop: '/api/shop',
+      dashboard: '/api/dashboard',
     },
   })
 })
