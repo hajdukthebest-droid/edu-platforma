@@ -4,15 +4,57 @@ import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
 import api from '@/lib/api'
-import { Users, BookOpen, Star, TrendingUp, Eye, Plus, Wrench } from 'lucide-react'
+import {
+  Users,
+  BookOpen,
+  Star,
+  TrendingUp,
+  Eye,
+  Plus,
+  Wrench,
+  DollarSign,
+  MessageSquare,
+  BarChart3,
+  Clock,
+  Award,
+} from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts'
 
 export default function InstructorDashboardPage() {
   const { data: dashboard, isLoading } = useQuery({
     queryKey: ['instructor-dashboard'],
     queryFn: async () => {
       const response = await api.get('/instructor/dashboard')
+      return response.data.data
+    },
+  })
+
+  const { data: analytics } = useQuery({
+    queryKey: ['instructor-analytics'],
+    queryFn: async () => {
+      const response = await api.get('/instructor/analytics')
+      return response.data.data
+    },
+  })
+
+  const { data: recentReviews } = useQuery({
+    queryKey: ['instructor-recent-reviews'],
+    queryFn: async () => {
+      const response = await api.get('/instructor/reviews?limit=5')
       return response.data.data
     },
   })
@@ -101,6 +143,50 @@ export default function InstructorDashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Enrollment Trends Chart */}
+        {analytics?.enrollmentTrends && analytics.enrollmentTrends.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Trend upisa
+              </CardTitle>
+              <CardDescription>Upisi kroz vrijeme</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={analytics.enrollmentTrends}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(value) =>
+                      new Date(value).toLocaleDateString('hr-HR', {
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    }
+                    fontSize={11}
+                  />
+                  <YAxis />
+                  <Tooltip
+                    labelFormatter={(value) =>
+                      new Date(value).toLocaleDateString('hr-HR')
+                    }
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="enrollments"
+                    name="Upisi"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Courses */}
@@ -203,6 +289,53 @@ export default function InstructorDashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Recent Reviews */}
+        {recentReviews && recentReviews.length > 0 && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                Nedavne recenzije
+              </CardTitle>
+              <CardDescription>Što studenti kažu o vašim tečajevima</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentReviews.map((review: any) => (
+                  <div key={review.id} className="p-4 border rounded-lg">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <p className="font-medium">
+                          {review.user.firstName} {review.user.lastName}
+                        </p>
+                        <p className="text-sm text-gray-600">{review.course.title}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`h-4 w-4 ${
+                              i < review.rating
+                                ? 'fill-yellow-400 text-yellow-400'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    {review.comment && (
+                      <p className="text-sm text-gray-700 line-clamp-2">{review.comment}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-2">
+                      {formatDate(review.createdAt)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Completion Stats */}
         {dashboard.completionStats.length > 0 && (
