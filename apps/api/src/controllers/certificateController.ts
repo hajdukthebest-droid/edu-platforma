@@ -113,6 +113,73 @@ export class CertificateController {
       next(error)
     }
   }
+
+  async getPublicCertificate(req: Request, res: Response, next: NextFunction) {
+    try {
+      const certificate = await certificateService.getPublicCertificate(
+        req.params.certificateNumber
+      )
+
+      res.json({
+        status: 'success',
+        data: certificate,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async getShareUrls(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      const shareUrls = await certificateService.generateShareUrls(
+        req.params.id,
+        req.user.id
+      )
+
+      res.json({
+        status: 'success',
+        data: shareUrls,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async trackShare(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { platform } = req.body
+
+      await certificateService.trackShare(req.params.id, platform)
+
+      res.json({
+        status: 'success',
+        message: 'Share tracked',
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async getStats(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      }
+
+      const stats = await certificateService.getCertificateStats(req.user.id)
+
+      res.json({
+        status: 'success',
+        data: stats,
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
 }
 
 export const certificateController = new CertificateController()

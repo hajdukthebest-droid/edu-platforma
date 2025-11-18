@@ -708,6 +708,15 @@ model Certificate {
   verificationUrl String?
   qrCode          String?
 
+  // Social sharing
+  publicUrl       String?  // Public shareable page URL
+  linkedInUrl     String?  // Pre-generated LinkedIn share URL
+  ogImageUrl      String?  // Open Graph image for social previews
+
+  // Sharing stats
+  shareCount      Int      @default(0)
+  viewCount       Int      @default(0)
+
   user            User     @relation(fields: [userId], references: [id])
   course          Course   @relation(fields: [courseId], references: [id])
 

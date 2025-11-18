@@ -563,6 +563,141 @@ export class CertificateService {
     // Generate PDF if it doesn't exist
     return await this.generatePDF(certificateId, userId)
   }
+
+  /**
+   * Get public certificate view (for sharing)
+   */
+  async getPublicCertificate(certificateNumber: string) {
+    const certificate = await prisma.certificate.findUnique({
+      where: { certificateNumber },
+      include: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        course: {
+          select: {
+            title: true,
+            cpdPoints: true,
+            cmeCredits: true,
+          },
+        },
+      },
+    })
+
+    if (!certificate) {
+      throw new AppError(404, 'Certificate not found')
+    }
+
+    // Increment view count
+    await prisma.certificate.update({
+      where: { id: certificate.id },
+      data: { viewCount: { increment: 1 } },
+    })
+
+    return certificate
+  }
+
+  /**
+   * Generate social share URLs for a certificate
+   */
+  async generateShareUrls(certificateId: string, userId: string) {
+    const certificate = await this.getCertificate(certificateId, userId)
+    const frontendUrl = process.env.FRONTEND_URL || 'https://edu-platforma.hr'
+
+    // Public URL for the certificate
+    const publicUrl = `${frontendUrl}/certificates/public/${certificate.certificateNumber}`
+
+    // Certificate title for sharing
+    const title = `${certificate.user.firstName} ${certificate.user.lastName} - ${certificate.course.title}`
+    const description = `Successfully completed ${certificate.course.title} on Edu Platforma`
+
+    // Encoded values for URLs
+    const encodedUrl = encodeURIComponent(publicUrl)
+    const encodedTitle = encodeURIComponent(title)
+    const encodedDescription = encodeURIComponent(description)
+
+    // LinkedIn share URL
+    // LinkedIn Add to Profile: https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME
+    const linkedInAddUrl = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${encodeURIComponent(certificate.course.title)}&organizationName=${encodeURIComponent('Edu Platforma')}&issueYear=${certificate.issueDate.getFullYear()}&issueMonth=${certificate.issueDate.getMonth() + 1}&certUrl=${encodedUrl}&certId=${encodeURIComponent(certificate.certificateNumber)}`
+
+    // LinkedIn share post
+    const linkedInShareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`
+
+    // Twitter share URL
+    const twitterText = `I just earned a certificate for "${certificate.course.title}" on @EduPlatforma! 🎓`
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(twitterText)}&url=${encodedUrl}`
+
+    // Facebook share URL
+    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`
+
+    // WhatsApp share URL
+    const whatsappText = `I just earned a certificate for "${certificate.course.title}" on Edu Platforma! Check it out: ${publicUrl}`
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappText)}`
+
+    // Email share URL
+    const emailSubject = `Check out my certificate - ${certificate.course.title}`
+    const emailBody = `I just earned a certificate for "${certificate.course.title}" on Edu Platforma!\n\nView my certificate: ${publicUrl}`
+    const emailUrl = `mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`
+
+    // Update certificate with share URLs
+    await prisma.certificate.update({
+      where: { id: certificateId },
+      data: {
+        publicUrl,
+        linkedInUrl: linkedInAddUrl,
+      },
+    })
+
+    return {
+      publicUrl,
+      linkedInAdd: linkedInAddUrl,
+      linkedInShare: linkedInShareUrl,
+      twitter: twitterUrl,
+      facebook: facebookUrl,
+      whatsapp: whatsappUrl,
+      email: emailUrl,
+    }
+  }
+
+  /**
+   * Track when a certificate is shared
+   */
+  async trackShare(certificateId: string, platform: string) {
+    await prisma.certificate.update({
+      where: { id: certificateId },
+      data: { shareCount: { increment: 1 } },
+    })
+
+    // Could also log to analytics here
+    console.log(`Certificate ${certificateId} shared on ${platform}`)
+  }
+
+  /**
+   * Get certificate statistics for user
+   */
+  async getCertificateStats(userId: string) {
+    const certificates = await prisma.certificate.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        shareCount: true,
+        viewCount: true,
+      },
+    })
+
+    const totalCertificates = certificates.length
+    const totalShares = certificates.reduce((sum, c) => sum + c.shareCount, 0)
+    const totalViews = certificates.reduce((sum, c) => sum + c.viewCount, 0)
+
+    return {
+      totalCertificates,
+      totalShares,
+      totalViews,
+    }
+  }
 }
 
 export const certificateService = new CertificateService()

@@ -1,13 +1,23 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import api from '@/lib/api'
 import { formatDate } from '@/lib/utils'
-import { Download, Share2, Award } from 'lucide-react'
+import { Download, Share2, Award, Linkedin, Twitter, Facebook, Mail, MessageCircle, Link, Check } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function CertificateViewPage({ params }: { params: { id: string } }) {
+  const [copied, setCopied] = useState(false)
+
   const { data: certificate, isLoading } = useQuery({
     queryKey: ['certificate', params.id],
     queryFn: async () => {
@@ -15,6 +25,36 @@ export default function CertificateViewPage({ params }: { params: { id: string }
       return response.data.data
     },
   })
+
+  const { data: shareUrls } = useQuery({
+    queryKey: ['certificate-share-urls', params.id],
+    queryFn: async () => {
+      const response = await api.get(`/certificates/${params.id}/share-urls`)
+      return response.data.data
+    },
+    enabled: !!certificate,
+  })
+
+  const trackShareMutation = useMutation({
+    mutationFn: async (platform: string) => {
+      await api.post(`/certificates/${params.id}/track-share`, { platform })
+    },
+  })
+
+  const handleShare = (platform: string, url: string) => {
+    trackShareMutation.mutate(platform)
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  const handleCopyLink = async () => {
+    if (shareUrls?.publicUrl) {
+      await navigator.clipboard.writeText(shareUrls.publicUrl)
+      setCopied(true)
+      trackShareMutation.mutate('copy')
+      toast.success('Link kopiran u međuspremnik')
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -37,10 +77,60 @@ export default function CertificateViewPage({ params }: { params: { id: string }
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Actions */}
         <div className="flex justify-end gap-2 mb-6">
-          <Button variant="outline">
-            <Share2 className="h-4 w-4 mr-2" />
-            Podijeli
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Share2 className="h-4 w-4 mr-2" />
+                Podijeli
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {shareUrls?.linkedin && (
+                <DropdownMenuItem onClick={() => handleShare('linkedin', shareUrls.linkedin)}>
+                  <Linkedin className="h-4 w-4 mr-2 text-[#0077b5]" />
+                  LinkedIn
+                </DropdownMenuItem>
+              )}
+              {shareUrls?.linkedInAddToProfile && (
+                <DropdownMenuItem onClick={() => handleShare('linkedin_profile', shareUrls.linkedInAddToProfile)}>
+                  <Linkedin className="h-4 w-4 mr-2 text-[#0077b5]" />
+                  Dodaj na LinkedIn profil
+                </DropdownMenuItem>
+              )}
+              {shareUrls?.twitter && (
+                <DropdownMenuItem onClick={() => handleShare('twitter', shareUrls.twitter)}>
+                  <Twitter className="h-4 w-4 mr-2" />
+                  Twitter
+                </DropdownMenuItem>
+              )}
+              {shareUrls?.facebook && (
+                <DropdownMenuItem onClick={() => handleShare('facebook', shareUrls.facebook)}>
+                  <Facebook className="h-4 w-4 mr-2 text-[#1877f2]" />
+                  Facebook
+                </DropdownMenuItem>
+              )}
+              {shareUrls?.whatsapp && (
+                <DropdownMenuItem onClick={() => handleShare('whatsapp', shareUrls.whatsapp)}>
+                  <MessageCircle className="h-4 w-4 mr-2 text-[#25d366]" />
+                  WhatsApp
+                </DropdownMenuItem>
+              )}
+              {shareUrls?.email && (
+                <DropdownMenuItem onClick={() => handleShare('email', shareUrls.email)}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Email
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={handleCopyLink}>
+                {copied ? (
+                  <Check className="h-4 w-4 mr-2 text-green-600" />
+                ) : (
+                  <Link className="h-4 w-4 mr-2" />
+                )}
+                {copied ? 'Kopirano!' : 'Kopiraj link'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button asChild>
             <a href={`/api/certificates/${certificate.id}/pdf`} download>
               <Download className="h-4 w-4 mr-2" />
