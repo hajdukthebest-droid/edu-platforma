@@ -124,6 +124,12 @@ model User {
   flashcardDecks    FlashcardDeck[] @relation("FlashcardDecksCreated")
   flashcardReviews  FlashcardReview[] @relation("FlashcardReviews")
   examSessions      ExamSession[] @relation("ExamSessions")
+  studyGroupsCreated StudyGroup[] @relation("StudyGroupsCreated")
+  studyGroupMemberships StudyGroupMember[] @relation("StudyGroupMemberships")
+  studyGroupMessages StudyGroupMessage[] @relation("StudyGroupMessages")
+  studyGroupResources StudyGroupResource[] @relation("StudyGroupResources")
+  studySessionsCreated StudySession[] @relation("StudySessionsCreated")
+  studyGroupInvitesSent StudyGroupInvite[] @relation("StudyGroupInvitesSent")
 
   @@index([email])
   @@index([role])
@@ -276,6 +282,7 @@ model Course {
   translations      CourseTranslation[]
   versions          CourseVersion[]
   flashcardDecks    FlashcardDeck[]
+  studyGroups       StudyGroup[]
 
   // Timestamps
   publishedAt       DateTime?
@@ -1594,4 +1601,165 @@ model FlashcardReview {
   @@index([nextReview])
   @@index([userId, nextReview])
   @@map("flashcard_reviews")
+}
+
+// ============================================
+// STUDY GROUPS
+// ============================================
+
+enum StudyGroupRole {
+  ADMIN     // Can manage group, invite members, delete
+  MODERATOR // Can manage content and members
+  MEMBER    // Regular member
+}
+
+model StudyGroup {
+  id          String   @id @default(cuid())
+
+  // Basic info
+  name        String
+  description String?
+  avatar      String?  // Group avatar URL
+
+  // Settings
+  isPrivate   Boolean  @default(true)
+  maxMembers  Int      @default(50)
+
+  // Association with course (optional)
+  courseId    String?
+
+  // Relations
+  course      Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  members     StudyGroupMember[]
+  messages    StudyGroupMessage[]
+  resources   StudyGroupResource[]
+  sessions    StudySession[]
+  invites     StudyGroupInvite[]
+
+  createdById String
+  createdBy   User     @relation("StudyGroupsCreated", fields: [createdById], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([createdById])
+  @@map("study_groups")
+}
+
+model StudyGroupMember {
+  id          String         @id @default(cuid())
+  groupId     String
+  userId      String
+
+  role        StudyGroupRole @default(MEMBER)
+
+  // Relations
+  group       StudyGroup     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user        User           @relation("StudyGroupMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  joinedAt    DateTime       @default(now())
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+  @@map("study_group_members")
+}
+
+model StudyGroupMessage {
+  id          String     @id @default(cuid())
+  groupId     String
+  userId      String
+
+  content     String
+  attachments String[]   // File URLs
+
+  // Reply support
+  replyToId   String?
+  replyTo     StudyGroupMessage?  @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     StudyGroupMessage[] @relation("MessageReplies")
+
+  // Relations
+  group       StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user        User       @relation("StudyGroupMessages", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([groupId])
+  @@index([userId])
+  @@map("study_group_messages")
+}
+
+model StudyGroupResource {
+  id          String     @id @default(cuid())
+  groupId     String
+  userId      String
+
+  // Resource info
+  title       String
+  description String?
+  type        String     // 'file', 'link', 'note'
+  url         String?    // File URL or external link
+  content     String?    // For notes
+
+  // Relations
+  group       StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user        User       @relation("StudyGroupResources", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([groupId])
+  @@index([userId])
+  @@map("study_group_resources")
+}
+
+model StudySession {
+  id          String     @id @default(cuid())
+  groupId     String
+
+  // Session info
+  title       String
+  description String?
+  scheduledAt DateTime
+  duration    Int        // Minutes
+  meetingUrl  String?    // Video call link
+
+  // Relations
+  group       StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User       @relation("StudySessionsCreated", fields: [createdById], references: [id])
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([groupId])
+  @@index([scheduledAt])
+  @@map("study_sessions")
+}
+
+model StudyGroupInvite {
+  id          String     @id @default(cuid())
+  groupId     String
+  invitedById String
+
+  // Invite details
+  email       String?    // Email to invite
+  token       String     @unique // Unique invite token
+  expiresAt   DateTime
+
+  // Status
+  usedAt      DateTime?
+  usedById    String?
+
+  // Relations
+  group       StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  invitedBy   User       @relation("StudyGroupInvitesSent", fields: [invitedById], references: [id])
+
+  createdAt   DateTime   @default(now())
+
+  @@index([groupId])
+  @@index([token])
+  @@map("study_group_invites")
 }
