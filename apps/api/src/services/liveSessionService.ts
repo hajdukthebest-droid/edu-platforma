@@ -2,6 +2,7 @@ import { prisma } from '@edu-platforma/database'
 import { AppError } from '../middleware/errorHandler'
 import { Prisma, LiveSessionStatus } from '@prisma/client'
 import { notificationService } from './notificationService'
+import { scheduleSessionReminder, cancelSessionReminders } from './notificationScheduler'
 
 interface CreateSessionData {
   courseId?: string
@@ -48,8 +49,8 @@ export class LiveSessionService {
       },
     })
 
-    // TODO: Schedule notification reminder 1 hour before session
-    // This would be handled by a background job
+    // Schedule notification reminders (1 hour and 15 minutes before)
+    await scheduleSessionReminder(session.id, data.scheduledStartTime)
 
     return session
   }
@@ -205,6 +206,9 @@ export class LiveSessionService {
         status: 'CANCELLED',
       },
     })
+
+    // Cancel scheduled reminders
+    await cancelSessionReminders(sessionId)
 
     return updated
   }

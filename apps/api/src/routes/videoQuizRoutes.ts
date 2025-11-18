@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import videoQuizController from '../controllers/videoQuizController'
-import { authenticate } from '../middleware/auth'
+import { authenticate, authorize } from '../middleware/auth'
 
 const router = Router()
 
@@ -22,15 +22,15 @@ router.get(
 )
 
 // Authenticated routes - Instructors/Admins
-// TODO: Add role-based middleware to restrict these to INSTRUCTOR/ADMIN only
-router.post('/', authenticate, videoQuizController.createVideoQuiz)
-router.get('/:id', authenticate, videoQuizController.getVideoQuizById)
-router.put('/:id', authenticate, videoQuizController.updateVideoQuiz)
-router.delete('/:id', authenticate, videoQuizController.deleteVideoQuiz)
-router.get('/:id/statistics', authenticate, videoQuizController.getQuizStatistics)
+router.post('/', authenticate, authorize('INSTRUCTOR', 'ADMIN', 'SUPER_ADMIN'), videoQuizController.createVideoQuiz)
+router.get('/:id', authenticate, authorize('INSTRUCTOR', 'ADMIN', 'SUPER_ADMIN'), videoQuizController.getVideoQuizById)
+router.put('/:id', authenticate, authorize('INSTRUCTOR', 'ADMIN', 'SUPER_ADMIN'), videoQuizController.updateVideoQuiz)
+router.delete('/:id', authenticate, authorize('INSTRUCTOR', 'ADMIN', 'SUPER_ADMIN'), videoQuizController.deleteVideoQuiz)
+router.get('/:id/statistics', authenticate, authorize('INSTRUCTOR', 'ADMIN', 'SUPER_ADMIN'), videoQuizController.getQuizStatistics)
 router.get(
   '/lesson/:lessonId/statistics',
   authenticate,
+  authorize('INSTRUCTOR', 'ADMIN', 'SUPER_ADMIN'),
   videoQuizController.getLessonQuizStatistics
 )
 
