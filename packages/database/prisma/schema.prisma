@@ -130,6 +130,8 @@ model User {
   studyGroupResources StudyGroupResource[] @relation("StudyGroupResources")
   studySessionsCreated StudySession[] @relation("StudySessionsCreated")
   studyGroupInvitesSent StudyGroupInvite[] @relation("StudyGroupInvitesSent")
+  learningStreak    LearningStreak? @relation("UserLearningStreak")
+  streakRewards     StreakReward[] @relation("UserStreakRewards")
 
   @@index([email])
   @@index([role])
@@ -1762,4 +1764,95 @@ model StudyGroupInvite {
   @@index([groupId])
   @@index([token])
   @@map("study_group_invites")
+}
+
+// ============================================
+// LEARNING STREAKS & DAILY GOALS
+// ============================================
+
+model LearningStreak {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+
+  // Current streak
+  currentStreak Int      @default(0)
+  longestStreak Int      @default(0)
+  lastActivityDate DateTime?
+
+  // Daily goals
+  dailyGoalMinutes Int   @default(15) // Default 15 minutes per day
+  dailyGoalLessons Int   @default(1)  // Default 1 lesson per day
+
+  // Streak protection
+  freezeDaysAvailable Int @default(0) // Days you can miss without losing streak
+  freezeDaysUsed      Int @default(0)
+
+  // Statistics
+  totalDaysActive     Int @default(0)
+  totalMinutesLearned Int @default(0)
+  totalLessonsCompleted Int @default(0)
+
+  // Achievements
+  streakMilestones    Int[] @default([]) // Achieved milestones: 7, 30, 100, 365 days
+
+  // Relations
+  user          User     @relation("UserLearningStreak", fields: [userId], references: [id], onDelete: Cascade)
+  dailyActivities DailyActivity[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([currentStreak])
+  @@map("learning_streaks")
+}
+
+model DailyActivity {
+  id            String   @id @default(cuid())
+  streakId      String
+  date          DateTime @db.Date // Just the date, no time
+
+  // Activity metrics
+  minutesLearned Int     @default(0)
+  lessonsCompleted Int   @default(0)
+  quizzesCompleted Int   @default(0)
+  pointsEarned   Int     @default(0)
+
+  // Goal completion
+  goalMet       Boolean  @default(false)
+  usedFreeze    Boolean  @default(false)
+
+  // Activity breakdown
+  courseActivities Json? // { courseId: { minutes: number, lessons: number } }
+
+  // Relations
+  streak        LearningStreak @relation(fields: [streakId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([streakId, date])
+  @@index([streakId])
+  @@index([date])
+  @@map("daily_activities")
+}
+
+model StreakReward {
+  id            String   @id @default(cuid())
+  userId        String
+
+  // Reward info
+  milestone     Int      // 7, 30, 100, 365, etc.
+  rewardType    String   // 'badge', 'points', 'freeze_day', 'discount'
+  rewardValue   String   // Badge ID, points amount, etc.
+  claimedAt     DateTime?
+
+  // Relations
+  user          User     @relation("UserStreakRewards", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, milestone])
+  @@index([userId])
+  @@map("streak_rewards")
 }

@@ -32,6 +32,7 @@ import videoQuizRoutes from './videoQuizRoutes'
 import flashcardRoutes from './flashcardRoutes'
 import timedExamRoutes from './timedExamRoutes'
 import studyGroupRoutes from './studyGroupRoutes'
+import streakRoutes from './streakRoutes'
 
 const router = Router()
 
@@ -70,6 +71,7 @@ router.use('/video-quizzes', videoQuizRoutes)
 router.use('/flashcards', flashcardRoutes)
 router.use('/timed-exams', timedExamRoutes)
 router.use('/study-groups', studyGroupRoutes)
+router.use('/streaks', streakRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -111,6 +113,7 @@ router.get('/', (req, res) => {
       flashcards: '/api/flashcards',
       timedExams: '/api/timed-exams',
       studyGroups: '/api/study-groups',
+      streaks: '/api/streaks',
     },
   })
 })
