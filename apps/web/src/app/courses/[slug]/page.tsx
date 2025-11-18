@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CourseReviews } from '@/components/CourseReviews'
+import { CourseDiscussions } from '@/components/CourseDiscussions'
 import api from '@/lib/api'
 import { formatCurrency } from '@/lib/utils'
 import { Clock, Users, Award, BookOpen } from 'lucide-react'
@@ -22,6 +23,14 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
 
   const handleEnroll = async () => {
     try {
+      // For paid courses, redirect to checkout
+      const price = Number(course?.price) || 0
+      if (price > 0) {
+        router.push(`/checkout/${course.id}`)
+        return
+      }
+
+      // For free courses, enroll directly
       await api.post(`/courses/${course.id}/enroll`)
       router.push('/dashboard')
     } catch (error: any) {
@@ -150,6 +159,9 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
 
             {/* Reviews */}
             <CourseReviews courseId={course.id} />
+
+            {/* Course Discussions */}
+            <CourseDiscussions courseId={course.id} courseName={course.title} />
           </div>
 
           {/* Sidebar */}
