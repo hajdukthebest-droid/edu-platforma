@@ -42,6 +42,10 @@ import {
   Calendar,
   CheckCircle,
   Trophy,
+  Zap,
+  Brain,
+  BarChart2,
+  TrendingDown,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -202,6 +206,16 @@ export default function PersonalAnalyticsPage() {
     queryKey: ['weekly-progress'],
     queryFn: async () => {
       const response = await api.get('/dashboard/weekly-progress?weeks=12')
+      return response.data.data
+    },
+    enabled: !!user,
+  })
+
+  // Learning insights
+  const { data: insightsData } = useQuery({
+    queryKey: ['learning-insights'],
+    queryFn: async () => {
+      const response = await api.get('/dashboard/insights')
       return response.data.data
     },
     enabled: !!user,
@@ -616,6 +630,143 @@ export default function PersonalAnalyticsPage() {
               </Card>
             )}
           </div>
+
+          {/* Learning Insights */}
+          {insightsData && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5" />
+                  Uvidi u učenje
+                </CardTitle>
+                <CardDescription>
+                  Personalizirane preporuke na temelju vašeg napretka
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {/* Learning Velocity */}
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Zap className="h-5 w-5 text-yellow-500" />
+                      <span className="font-medium">Brzina učenja</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Lekcija po danu</span>
+                        <span className="font-semibold">
+                          {insightsData.lessonsPerDay?.toFixed(1) || '0'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Prosječno vrijeme po lekciji</span>
+                        <span className="font-semibold">
+                          {insightsData.avgTimePerLesson || 0} min
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Tjedni trend</span>
+                        <span className={`font-semibold flex items-center gap-1 ${
+                          (insightsData.weeklyTrend || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {(insightsData.weeklyTrend || 0) >= 0 ? (
+                            <TrendingUp className="h-3 w-3" />
+                          ) : (
+                            <TrendingDown className="h-3 w-3" />
+                          )}
+                          {Math.abs(insightsData.weeklyTrend || 0)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Peak Hours */}
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock className="h-5 w-5 text-blue-500" />
+                      <span className="font-medium">Vrijeme učenja</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Najproduktivniji sat</span>
+                        <span className="font-semibold">
+                          {insightsData.peakHour ? `${insightsData.peakHour}:00` : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Najbolji dan</span>
+                        <span className="font-semibold">
+                          {insightsData.bestDay || 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Prosječna sesija</span>
+                        <span className="font-semibold">
+                          {insightsData.avgSessionLength || 0} min
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Strengths */}
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Star className="h-5 w-5 text-green-500" />
+                      <span className="font-medium">Vaše snage</span>
+                    </div>
+                    {insightsData.strengths && insightsData.strengths.length > 0 ? (
+                      <ul className="space-y-1 text-sm">
+                        {insightsData.strengths.map((strength: string, i: number) => (
+                          <li key={i} className="flex items-center gap-2">
+                            <CheckCircle className="h-3 w-3 text-green-500" />
+                            {strength}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        Nastavite učiti da otkrijemo vaše snage
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Areas to Improve */}
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Target className="h-5 w-5 text-orange-500" />
+                      <span className="font-medium">Područja za poboljšanje</span>
+                    </div>
+                    {insightsData.improvements && insightsData.improvements.length > 0 ? (
+                      <ul className="space-y-1 text-sm">
+                        {insightsData.improvements.map((item: string, i: number) => (
+                          <li key={i} className="flex items-center gap-2">
+                            <BarChart2 className="h-3 w-3 text-orange-500" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        Odlično! Nema posebnih preporuka za sada
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recommendations */}
+                {insightsData.recommendations && insightsData.recommendations.length > 0 && (
+                  <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                    <h4 className="font-medium text-blue-800 mb-2">Preporuke za vas</h4>
+                    <ul className="space-y-1 text-sm text-blue-700">
+                      {insightsData.recommendations.map((rec: string, i: number) => (
+                        <li key={i}>• {rec}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Progress Summary */}
           <Card>
