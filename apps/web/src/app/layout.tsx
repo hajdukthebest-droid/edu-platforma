@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers/Providers'
 import { Navbar } from '@/components/layout/Navbar'
+import { Footer } from '@/components/layout/Footer'
 import { CookieConsent } from '@/components/CookieConsent'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -32,7 +33,8 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           <Navbar />
-          {children}
+          <main className="min-h-screen">{children}</main>
+          <Footer />
           <CookieConsent />
         </Providers>
       </body>
