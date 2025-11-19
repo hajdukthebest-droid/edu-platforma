@@ -40,6 +40,14 @@ import {
   BookOpen,
   Save,
   Download,
+  Eye,
+  Clock,
+  Users,
+  BarChart2,
+  CheckSquare,
+  Square,
+  Loader2,
+  Play,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -63,6 +71,9 @@ export default function CourseBuilderPage() {
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [selectedLesson, setSelectedLesson] = useState<any>(null)
   const [targetModuleId, setTargetModuleId] = useState<string>('')
+  const [selectedLessons, setSelectedLessons] = useState<Set<string>>(new Set())
+  const [previewLesson, setPreviewLesson] = useState<any>(null)
+  const [showPreview, setShowPreview] = useState(false)
 
   // Fetch course with modules and lessons
   const { data: course, isLoading } = useQuery({
@@ -168,6 +179,56 @@ export default function CourseBuilderPage() {
       URL.revokeObjectURL(url)
     },
   })
+
+  // Delete lessons mutation
+  const deleteLessonsMutation = useMutation({
+    mutationFn: async (lessonIds: string[]) => {
+      await Promise.all(
+        lessonIds.map((id) => api.delete(`/course-builder/lessons/${id}`))
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course-builder', params.courseId] })
+      setSelectedLessons(new Set())
+    },
+  })
+
+  // Toggle lesson selection
+  const toggleLessonSelection = (lessonId: string) => {
+    const newSelected = new Set(selectedLessons)
+    if (newSelected.has(lessonId)) {
+      newSelected.delete(lessonId)
+    } else {
+      newSelected.add(lessonId)
+    }
+    setSelectedLessons(newSelected)
+  }
+
+  // Select all lessons in a module
+  const toggleModuleSelection = (module: any) => {
+    const moduleLessonIds = module.lessons?.map((l: any) => l.id) || []
+    const allSelected = moduleLessonIds.every((id: string) => selectedLessons.has(id))
+
+    const newSelected = new Set(selectedLessons)
+    if (allSelected) {
+      moduleLessonIds.forEach((id: string) => newSelected.delete(id))
+    } else {
+      moduleLessonIds.forEach((id: string) => newSelected.add(id))
+    }
+    setSelectedLessons(newSelected)
+  }
+
+  // Calculate course stats
+  const courseStats = {
+    totalModules: course?.modules?.length || 0,
+    totalLessons: course?.modules?.reduce((acc: number, m: any) => acc + (m.lessons?.length || 0), 0) || 0,
+    videoLessons: course?.modules?.reduce((acc: number, m: any) =>
+      acc + (m.lessons?.filter((l: any) => l.type === 'VIDEO').length || 0), 0) || 0,
+    quizzes: course?.modules?.reduce((acc: number, m: any) =>
+      acc + (m.lessons?.filter((l: any) => l.type === 'QUIZ').length || 0), 0) || 0,
+    estimatedDuration: course?.modules?.reduce((acc: number, m: any) =>
+      acc + (m.lessons?.reduce((sum: number, l: any) => sum + (l.duration || 10), 0) || 0), 0) || 0,
+  }
 
   // Module drag handlers
   const handleModuleDragStart = (module: any) => {
@@ -334,6 +395,100 @@ export default function CourseBuilderPage() {
 
       {/* Content */}
       <div className="container mx-auto px-4 py-8 max-w-5xl">
+        {/* Course Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-blue-600" />
+                <div>
+                  <div className="text-xl font-bold">{courseStats.totalModules}</div>
+                  <div className="text-xs text-gray-500">Modula</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-green-600" />
+                <div>
+                  <div className="text-xl font-bold">{courseStats.totalLessons}</div>
+                  <div className="text-xs text-gray-500">Lekcija</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-2">
+                <Video className="h-4 w-4 text-purple-600" />
+                <div>
+                  <div className="text-xl font-bold">{courseStats.videoLessons}</div>
+                  <div className="text-xs text-gray-500">Video</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-2">
+                <ListChecks className="h-4 w-4 text-orange-600" />
+                <div>
+                  <div className="text-xl font-bold">{courseStats.quizzes}</div>
+                  <div className="text-xs text-gray-500">Kvizova</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-gray-600" />
+                <div>
+                  <div className="text-xl font-bold">{Math.round(courseStats.estimatedDuration / 60)}h</div>
+                  <div className="text-xs text-gray-500">Trajanje</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Bulk Actions Bar */}
+        {selectedLessons.size > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6 flex items-center justify-between">
+            <span className="text-sm font-medium text-blue-800">
+              {selectedLessons.size} lekcija odabrano
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedLessons(new Set())}
+              >
+                Poništi odabir
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  if (confirm(`Jeste li sigurni da želite obrisati ${selectedLessons.size} lekcija?`)) {
+                    deleteLessonsMutation.mutate(Array.from(selectedLessons))
+                  }
+                }}
+                disabled={deleteLessonsMutation.isPending}
+              >
+                {deleteLessonsMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                Obriši odabrane
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-6">
           {course.modules?.length === 0 ? (
             <Card>
@@ -417,6 +572,7 @@ export default function CourseBuilderPage() {
                     ) : (
                       module.lessons?.map((lesson: any, lessonIndex: number) => {
                         const Icon = lessonTypeIcons[lesson.type] || FileText
+                        const isSelected = selectedLessons.has(lesson.id)
                         return (
                           <div
                             key={lesson.id}
@@ -426,8 +582,18 @@ export default function CourseBuilderPage() {
                             onDragEnd={handleLessonDragEnd}
                             className={`flex items-center gap-3 p-3 bg-white border rounded-lg hover:shadow-sm transition-all ${
                               draggedLesson?.id === lesson.id ? 'opacity-50' : ''
-                            }`}
+                            } ${isSelected ? 'border-blue-500 bg-blue-50' : ''}`}
                           >
+                            <button
+                              onClick={() => toggleLessonSelection(lesson.id)}
+                              className="flex-shrink-0"
+                            >
+                              {isSelected ? (
+                                <CheckSquare className="h-4 w-4 text-blue-600" />
+                              ) : (
+                                <Square className="h-4 w-4 text-gray-400" />
+                              )}
+                            </button>
                             <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
                             <Icon className="h-4 w-4 text-blue-600" />
                             <div className="flex-1 min-w-0">
@@ -443,9 +609,25 @@ export default function CourseBuilderPage() {
                                 <Badge variant="outline" className="text-xs">
                                   {lesson.type}
                                 </Badge>
+                                {lesson.duration && (
+                                  <span className="text-xs text-gray-500">
+                                    {lesson.duration} min
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setPreviewLesson(lesson)
+                                  setShowPreview(true)
+                                }}
+                                title="Pregled"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -555,6 +737,94 @@ export default function CourseBuilderPage() {
             >
               <Move className="h-4 w-4 mr-2" />
               Premjesti
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Lesson Dialog */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {previewLesson && (() => {
+                const Icon = lessonTypeIcons[previewLesson.type] || FileText
+                return <Icon className="h-5 w-5" />
+              })()}
+              {previewLesson?.title}
+            </DialogTitle>
+            <DialogDescription>
+              Pregled sadržaja lekcije
+            </DialogDescription>
+          </DialogHeader>
+
+          {previewLesson && (
+            <div className="space-y-4 py-4">
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                <Badge variant="outline">{previewLesson.type}</Badge>
+                {previewLesson.duration && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {previewLesson.duration} min
+                  </span>
+                )}
+                {previewLesson.pointsReward && (
+                  <span>{previewLesson.pointsReward} bodova</span>
+                )}
+              </div>
+
+              {previewLesson.description && (
+                <div>
+                  <h4 className="text-sm font-medium mb-1">Opis</h4>
+                  <p className="text-sm text-gray-600">{previewLesson.description}</p>
+                </div>
+              )}
+
+              {previewLesson.type === 'VIDEO' && previewLesson.videoUrl && (
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Video</h4>
+                  <div className="bg-gray-100 rounded-lg p-4 text-center">
+                    <Video className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600 break-all">{previewLesson.videoUrl}</p>
+                  </div>
+                </div>
+              )}
+
+              {previewLesson.type === 'ARTICLE' && previewLesson.content && (
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Sadržaj</h4>
+                  <div className="prose prose-sm max-h-60 overflow-y-auto border rounded p-4">
+                    <div dangerouslySetInnerHTML={{ __html: previewLesson.content.substring(0, 500) + '...' }} />
+                  </div>
+                </div>
+              )}
+
+              {previewLesson.attachments && previewLesson.attachments.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Prilozi ({previewLesson.attachments.length})</h4>
+                  <div className="space-y-1">
+                    {previewLesson.attachments.map((url: string, i: number) => (
+                      <div key={i} className="text-xs text-gray-500 truncate">
+                        {url}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPreview(false)}>
+              Zatvori
+            </Button>
+            <Button asChild>
+              <Link
+                href={`/instructor/courses/${params.courseId}/modules/${previewLesson?.moduleId}/lessons/${previewLesson?.id}/edit`}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Uredi lekciju
+              </Link>
             </Button>
           </DialogFooter>
         </DialogContent>
