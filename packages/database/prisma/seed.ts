@@ -501,6 +501,142 @@ async function main() {
   })
   console.log('✅ Forum categories created')
 
+  // Create tutor profiles
+  const tutorProfile1 = await prisma.tutorProfile.create({
+    data: {
+      userId: instructor.id,
+      headline: 'Iskusni farmaceut i mentor',
+      bio: 'Preko 10 godina iskustva u farmaceutskoj industriji. Specijalizirani za farmakologiju i regulatorne poslove. Volim pomoći studentima da razumiju kompleksne koncepte.',
+      hourlyRate: 50,
+      currency: 'EUR',
+      subjects: ['Farmakologija', 'Regulatorni poslovi', 'Klinička istraživanja'],
+      courseIds: [],
+      languages: ['hr', 'en'],
+      availableHours: {
+        monday: [{ start: '09:00', end: '17:00' }],
+        wednesday: [{ start: '09:00', end: '17:00' }],
+        friday: [{ start: '09:00', end: '12:00' }],
+      },
+      timezone: 'Europe/Zagreb',
+      qualifications: ['Mag. pharm.', 'Specijalist kliničke farmakologije'],
+      experience: '10+ godina u farmaceutskoj industriji',
+      status: 'APPROVED',
+      isAvailable: true,
+      totalSessions: 25,
+      totalHours: 37.5,
+      averageRating: 4.8,
+      totalReviews: 12,
+      verifiedAt: new Date(),
+      verifiedBy: admin.id,
+    },
+  })
+
+  const tutorProfile2 = await prisma.tutorProfile.create({
+    data: {
+      userId: instructor2.id,
+      headline: 'Specijalist biokemije i molekularne biologije',
+      bio: 'Predajem biokemiju na medicinskom fakultetu. Stručnjak za metabolizam lijekova i laboratorijsku dijagnostiku.',
+      hourlyRate: 60,
+      currency: 'EUR',
+      subjects: ['Biokemija', 'Molekularna biologija', 'Laboratorijska dijagnostika'],
+      languages: ['hr', 'en', 'de'],
+      availableHours: {
+        tuesday: [{ start: '14:00', end: '20:00' }],
+        thursday: [{ start: '14:00', end: '20:00' }],
+      },
+      timezone: 'Europe/Zagreb',
+      qualifications: ['Dr. sc.', 'Specijalist medicinske biokemije'],
+      experience: '15 godina akademskog iskustva',
+      status: 'APPROVED',
+      isAvailable: true,
+      totalSessions: 42,
+      totalHours: 63,
+      averageRating: 4.9,
+      totalReviews: 28,
+      verifiedAt: new Date(),
+      verifiedBy: admin.id,
+    },
+  })
+
+  const tutorProfile3 = await prisma.tutorProfile.create({
+    data: {
+      userId: instructor3.id,
+      headline: 'Kardiolog i klinički edukator',
+      bio: 'Profesor kardiologije sa strašću za edukaciju. Posvećen prenošenju znanja novim generacijama liječnika.',
+      hourlyRate: 75,
+      currency: 'EUR',
+      subjects: ['Kardiologija', 'Interna medicina', 'Klinička praksa'],
+      languages: ['hr', 'en'],
+      availableHours: {
+        saturday: [{ start: '10:00', end: '14:00' }],
+      },
+      timezone: 'Europe/Zagreb',
+      qualifications: ['Prof. dr. sc.', 'Specijalist kardiologije'],
+      experience: '20+ godina kliničkog iskustva',
+      status: 'APPROVED',
+      isAvailable: true,
+      isFeatured: true,
+      totalSessions: 89,
+      totalHours: 133.5,
+      averageRating: 5.0,
+      totalReviews: 45,
+      verifiedAt: new Date(),
+      verifiedBy: admin.id,
+    },
+  })
+  console.log('✅ Tutor profiles created: 3')
+
+  // Create a tutoring request
+  const tutoringRequest = await prisma.tutoringRequest.create({
+    data: {
+      studentId: learner.id,
+      title: 'Pomoć s farmakologijom kardiovaskularnih lijekova',
+      description: 'Trebam pomoć s razumijevanjem mehanizama djelovanja antihipertenziva i antikoagulansa. Pripremam se za ispit.',
+      subject: 'Farmakologija',
+      preferredLanguage: 'hr',
+      urgency: 'normal',
+      budgetMax: 60,
+      status: 'OPEN',
+    },
+  })
+  console.log('✅ Tutoring request created')
+
+  // Create a completed tutoring session with review
+  const tutoringSession = await prisma.tutoringSession.create({
+    data: {
+      tutorId: tutorProfile1.id,
+      studentId: learner.id,
+      title: 'Uvod u farmakokinetiku',
+      description: 'Osnove farmakokinetike i ADME procesa',
+      subject: 'Farmakologija',
+      scheduledAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+      duration: 60,
+      status: 'COMPLETED',
+      actualStartTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      actualEndTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000),
+      rate: 50,
+      totalCost: 50,
+      isPaid: true,
+      sessionNotes: 'Prošli smo osnove ADME, apsorpciju, distribuciju, metabolizam i eliminaciju. Student pokazuje dobro razumijevanje.',
+    },
+  })
+
+  await prisma.tutoringReview.create({
+    data: {
+      sessionId: tutoringSession.id,
+      tutorId: tutorProfile1.id,
+      studentId: learner.id,
+      overallRating: 5,
+      knowledgeRating: 5,
+      communicationRating: 5,
+      punctualityRating: 5,
+      helpfulnessRating: 5,
+      comment: 'Odlična sesija! Ana je izuzetno strpljiva i jasno objašnjava kompleksne koncepte. Preporučujem!',
+      isPublic: true,
+    },
+  })
+  console.log('✅ Tutoring session and review created')
+
   console.log('\n🎉 Seeding completed successfully!')
   console.log('\n📋 Test Accounts:')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
@@ -525,6 +661,8 @@ async function main() {
   console.log(`   • 4 course reviews`)
   console.log(`   • 3 badges for achievements`)
   console.log(`   • Forum categories`)
+  console.log(`   • 3 tutor profiles (approved tutors)`)
+  console.log(`   • 1 tutoring request + 1 completed session`)
   console.log('\n🚀 You can now login and test all features!')
 }
 

@@ -132,6 +132,10 @@ model User {
   studyGroupInvitesSent StudyGroupInvite[] @relation("StudyGroupInvitesSent")
   learningStreak    LearningStreak? @relation("UserLearningStreak")
   streakRewards     StreakReward[] @relation("UserStreakRewards")
+  tutorProfile      TutorProfile? @relation("TutorProfile")
+  tutoringRequests  TutoringRequest[] @relation("StudentTutoringRequests")
+  tutoringSessions  TutoringSession[] @relation("StudentSessions")
+  tutoringReviews   TutoringReview[] @relation("StudentTutoringReviews")
 
   @@index([email])
   @@index([role])
@@ -1855,4 +1859,274 @@ model StreakReward {
   @@unique([userId, milestone])
   @@index([userId])
   @@map("streak_rewards")
+}
+
+// ============================================
+// PEER TUTORING & MENTORSHIP
+// ============================================
+
+enum TutorStatus {
+  PENDING     // Application pending review
+  APPROVED    // Approved to tutor
+  SUSPENDED   // Temporarily suspended
+  REJECTED    // Application rejected
+}
+
+enum TutoringSessionStatus {
+  REQUESTED   // Student requested session
+  ACCEPTED    // Tutor accepted
+  SCHEDULED   // Time confirmed
+  IN_PROGRESS // Session ongoing
+  COMPLETED   // Session finished
+  CANCELLED   // Cancelled by either party
+  NO_SHOW     // One party didn't show up
+}
+
+enum TutoringRequestStatus {
+  OPEN        // Looking for tutor
+  MATCHED     // Found tutor
+  IN_PROGRESS // Currently being tutored
+  RESOLVED    // Help received
+  CLOSED      // Closed without resolution
+}
+
+model TutorProfile {
+  id            String       @id @default(cuid())
+  userId        String       @unique
+
+  // Profile info
+  headline      String?      // Short bio/tagline
+  bio           String?      // Detailed description
+  hourlyRate    Decimal?     @db.Decimal(10, 2) // Optional - can be free
+  currency      String       @default("EUR")
+
+  // Expertise
+  subjects      String[]     // Areas of expertise
+  courseIds     String[]     // Courses they can tutor in
+  languages     String[]     @default(["hr"]) // Languages they can tutor in
+
+  // Availability
+  availableHours Json?       // { monday: [{start: "09:00", end: "17:00"}], ... }
+  timezone      String       @default("Europe/Zagreb")
+  maxSessionsPerWeek Int?    // Optional limit
+
+  // Qualifications
+  qualifications String[]    // Certifications, degrees
+  experience    String?      // Years/description of experience
+
+  // Stats
+  totalSessions Int          @default(0)
+  totalHours    Float        @default(0)
+  averageRating Float?
+  totalReviews  Int          @default(0)
+  responseRate  Float?       // % of requests responded to
+  responseTime  Int?         // Average response time in minutes
+
+  // Status
+  status        TutorStatus  @default(PENDING)
+  isAvailable   Boolean      @default(true) // Currently accepting students
+  isFeatured    Boolean      @default(false) // Featured tutor
+
+  // Verification
+  verifiedAt    DateTime?
+  verifiedBy    String?      // Admin who verified
+
+  // Relations
+  user          User         @relation("TutorProfile", fields: [userId], references: [id], onDelete: Cascade)
+  sessions      TutoringSession[] @relation("TutorSessions")
+  reviews       TutoringReview[] @relation("TutorReviews")
+  applications  TutorApplication[] @relation("TutorApplications")
+  matchedRequests TutoringRequest[] @relation("MatchedTutoringRequests")
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([isAvailable])
+  @@index([averageRating])
+  @@map("tutor_profiles")
+}
+
+model TutoringRequest {
+  id            String                 @id @default(cuid())
+  studentId     String
+
+  // Request details
+  title         String
+  description   String
+  subject       String                 // Topic area
+  courseId      String?                // Related course
+  lessonId      String?                // Related lesson
+
+  // Preferences
+  preferredLanguage String?
+  urgency       String                 @default("normal") // low, normal, high, urgent
+  budgetMin     Decimal?               @db.Decimal(10, 2)
+  budgetMax     Decimal?               @db.Decimal(10, 2)
+  preferredSchedule Json?              // Preferred times
+
+  // Status
+  status        TutoringRequestStatus  @default(OPEN)
+
+  // Matching
+  matchedTutorId String?
+  matchedAt     DateTime?
+
+  // Relations
+  student       User                   @relation("StudentTutoringRequests", fields: [studentId], references: [id], onDelete: Cascade)
+  matchedTutor  TutorProfile?          @relation("MatchedTutoringRequests", fields: [matchedTutorId], references: [id], onDelete: SetNull)
+  sessions      TutoringSession[]
+  applications  TutorApplication[]
+
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  expiresAt     DateTime?
+
+  @@index([studentId])
+  @@index([status])
+  @@index([subject])
+  @@index([courseId])
+  @@map("tutoring_requests")
+}
+
+model TutorApplication {
+  id            String           @id @default(cuid())
+  requestId     String
+  tutorId       String
+
+  // Application details
+  message       String           // Tutor's pitch/introduction
+  proposedRate  Decimal?         @db.Decimal(10, 2)
+  proposedSchedule Json?         // Proposed meeting times
+
+  // Status
+  status        String           @default("pending") // pending, accepted, rejected, withdrawn
+
+  // Relations
+  request       TutoringRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  tutor         TutorProfile     @relation("TutorApplications", fields: [tutorId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([requestId, tutorId])
+  @@index([requestId])
+  @@index([tutorId])
+  @@map("tutor_applications")
+}
+
+model TutoringSession {
+  id            String                  @id @default(cuid())
+  tutorId       String
+  studentId     String
+  requestId     String?
+
+  // Session details
+  title         String
+  description   String?
+  subject       String
+
+  // Scheduling
+  scheduledAt   DateTime
+  duration      Int                     // Minutes
+  actualStartTime DateTime?
+  actualEndTime DateTime?
+
+  // Meeting info
+  meetingUrl    String?                 // Video call link
+  meetingProvider String?               // zoom, meet, teams, etc.
+  meetingRoomId String?                 // For internal video system
+
+  // Status
+  status        TutoringSessionStatus   @default(REQUESTED)
+  cancelReason  String?
+  cancelledBy   String?
+
+  // Payment (if applicable)
+  rate          Decimal?                @db.Decimal(10, 2)
+  totalCost     Decimal?                @db.Decimal(10, 2)
+  isPaid        Boolean                 @default(false)
+  paymentId     String?
+
+  // Notes
+  tutorNotes    String?                 // Private notes from tutor
+  sessionNotes  String?                 // Shared session notes
+  homework      String?                 // Assigned homework/tasks
+
+  // Resources shared during session
+  resources     Json?                   // [{name, url, type}]
+
+  // Relations
+  tutor         TutorProfile            @relation("TutorSessions", fields: [tutorId], references: [id], onDelete: Cascade)
+  student       User                    @relation("StudentSessions", fields: [studentId], references: [id], onDelete: Cascade)
+  request       TutoringRequest?        @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  review        TutoringReview?
+  messages      TutoringMessage[]
+
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  @@index([tutorId])
+  @@index([studentId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("tutoring_sessions")
+}
+
+model TutoringMessage {
+  id            String           @id @default(cuid())
+  sessionId     String
+  senderId      String
+
+  content       String
+  attachments   String[]
+
+  isRead        Boolean          @default(false)
+  readAt        DateTime?
+
+  // Relations
+  session       TutoringSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime         @default(now())
+
+  @@index([sessionId])
+  @@index([senderId])
+  @@map("tutoring_messages")
+}
+
+model TutoringReview {
+  id            String           @id @default(cuid())
+  sessionId     String           @unique
+  tutorId       String
+  studentId     String
+
+  // Ratings (1-5)
+  overallRating Int
+  knowledgeRating Int?           // Subject knowledge
+  communicationRating Int?       // Communication skills
+  punctualityRating Int?         // On-time and prepared
+  helpfulnessRating Int?         // How helpful was the session
+
+  // Review content
+  comment       String?
+
+  // Tutor response
+  tutorResponse String?
+  tutorRespondedAt DateTime?
+
+  // Visibility
+  isPublic      Boolean          @default(true)
+
+  // Relations
+  session       TutoringSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  tutor         TutorProfile     @relation("TutorReviews", fields: [tutorId], references: [id], onDelete: Cascade)
+  student       User             @relation("StudentTutoringReviews", fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([tutorId])
+  @@index([studentId])
+  @@map("tutoring_reviews")
 }

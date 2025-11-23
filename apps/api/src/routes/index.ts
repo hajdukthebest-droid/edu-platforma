@@ -33,6 +33,7 @@ import flashcardRoutes from './flashcardRoutes'
 import timedExamRoutes from './timedExamRoutes'
 import studyGroupRoutes from './studyGroupRoutes'
 import streakRoutes from './streakRoutes'
+import tutoringRoutes from './tutoringRoutes'
 
 const router = Router()
 
@@ -72,6 +73,7 @@ router.use('/flashcards', flashcardRoutes)
 router.use('/timed-exams', timedExamRoutes)
 router.use('/study-groups', studyGroupRoutes)
 router.use('/streaks', streakRoutes)
+router.use('/tutoring', tutoringRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -114,6 +116,7 @@ router.get('/', (req, res) => {
       timedExams: '/api/timed-exams',
       studyGroups: '/api/study-groups',
       streaks: '/api/streaks',
+      tutoring: '/api/tutoring',
     },
   })
 })
