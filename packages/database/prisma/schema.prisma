@@ -136,6 +136,9 @@ model User {
   tutoringRequests  TutoringRequest[] @relation("StudentTutoringRequests")
   tutoringSessions  TutoringSession[] @relation("StudentSessions")
   tutoringReviews   TutoringReview[] @relation("StudentTutoringReviews")
+  challengeParticipations ChallengeParticipant[] @relation("UserChallenges")
+  challengeLeaderboards ChallengeLeaderboard[] @relation("UserChallengeLeaderboard")
+  teamMemberships   TeamMember[] @relation("UserTeamMemberships")
 
   @@index([email])
   @@index([role])
@@ -2129,4 +2132,257 @@ model TutoringReview {
   @@index([tutorId])
   @@index([studentId])
   @@map("tutoring_reviews")
+}
+
+// ============================================
+// LEARNING CHALLENGES & COMPETITIONS
+// ============================================
+
+enum ChallengeType {
+  DAILY       // Complete daily tasks
+  WEEKLY      // Week-long challenge
+  MONTHLY     // Month-long challenge
+  SPECIAL     // Limited-time event
+  COURSE      // Course-specific challenge
+  COMMUNITY   // Community-wide challenge
+}
+
+enum ChallengeStatus {
+  DRAFT       // Not yet published
+  UPCOMING    // Scheduled but not started
+  ACTIVE      // Currently running
+  COMPLETED   // Finished
+  CANCELLED   // Cancelled before completion
+}
+
+enum ChallengeGoalType {
+  LESSONS_COMPLETED   // Complete X lessons
+  MINUTES_LEARNED     // Study for X minutes
+  QUIZZES_PASSED      // Pass X quizzes
+  COURSES_COMPLETED   // Complete X courses
+  STREAK_DAYS         // Maintain X day streak
+  POINTS_EARNED       // Earn X points
+  PERFECT_SCORES      // Get X perfect quiz scores
+  FLASHCARDS_REVIEWED // Review X flashcards
+  FORUM_POSTS         // Create X forum posts
+  CUSTOM              // Custom criteria
+}
+
+model Challenge {
+  id            String           @id @default(cuid())
+
+  // Basic info
+  title         String
+  description   String
+  shortDescription String?
+  thumbnail     String?
+
+  // Type and timing
+  type          ChallengeType
+  status        ChallengeStatus  @default(DRAFT)
+  startDate     DateTime
+  endDate       DateTime
+
+  // Goal configuration
+  goalType      ChallengeGoalType
+  goalTarget    Int              // Target number to achieve
+  goalConfig    Json?            // Additional configuration { courseId?, categoryId?, etc }
+
+  // Rewards
+  pointsReward  Int              @default(100)
+  badgeId       String?          // Badge awarded on completion
+  otherRewards  Json?            // { type: 'discount', value: '20%' }, etc.
+
+  // Restrictions
+  maxParticipants Int?           // null = unlimited
+  minLevel      Int?             // Minimum user level to participate
+  courseId      String?          // If course-specific
+  isPublic      Boolean          @default(true)
+
+  // Statistics
+  participantCount Int           @default(0)
+  completionCount  Int           @default(0)
+
+  // Creator
+  createdById   String
+
+  // Relations
+  participants  ChallengeParticipant[]
+  leaderboard   ChallengeLeaderboard[]
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+  @@map("challenges")
+}
+
+model ChallengeParticipant {
+  id            String    @id @default(cuid())
+  challengeId   String
+  userId        String
+
+  // Progress
+  currentProgress Int     @default(0)
+  isCompleted   Boolean   @default(false)
+  completedAt   DateTime?
+
+  // Tracking
+  lastActivityAt DateTime?
+  progressHistory Json?   // Array of { date, progress } for charting
+
+  // Rewards claimed
+  rewardsClaimed Boolean  @default(false)
+  claimedAt     DateTime?
+
+  // Relations
+  challenge     Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user          User      @relation("UserChallenges", fields: [userId], references: [id], onDelete: Cascade)
+
+  joinedAt      DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([challengeId, userId])
+  @@index([challengeId])
+  @@index([userId])
+  @@index([isCompleted])
+  @@map("challenge_participants")
+}
+
+model ChallengeLeaderboard {
+  id            String    @id @default(cuid())
+  challengeId   String
+  userId        String
+
+  // Ranking data
+  rank          Int
+  score         Int       // Progress or points
+  completionTime Int?     // Seconds to complete (for speed rankings)
+
+  // Snapshot at ranking time
+  snapshotAt    DateTime  @default(now())
+
+  // Relations
+  challenge     Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user          User      @relation("UserChallengeLeaderboard", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, userId])
+  @@index([challengeId])
+  @@index([rank])
+  @@map("challenge_leaderboards")
+}
+
+// Team-based competitions
+model Team {
+  id            String    @id @default(cuid())
+
+  name          String
+  description   String?
+  avatar        String?
+
+  // Stats
+  totalPoints   Int       @default(0)
+  memberCount   Int       @default(0)
+
+  // Settings
+  isPublic      Boolean   @default(true)
+  maxMembers    Int       @default(10)
+
+  // Creator
+  captainId     String
+
+  // Relations
+  members       TeamMember[]
+  competitions  TeamCompetitionParticipant[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([captainId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id            String    @id @default(cuid())
+  teamId        String
+  userId        String
+
+  role          String    @default("member") // captain, co-captain, member
+  contributedPoints Int   @default(0)
+
+  // Relations
+  team          Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user          User      @relation("UserTeamMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  joinedAt      DateTime  @default(now())
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+model TeamCompetition {
+  id            String    @id @default(cuid())
+
+  title         String
+  description   String
+
+  // Timing
+  startDate     DateTime
+  endDate       DateTime
+  status        ChallengeStatus @default(DRAFT)
+
+  // Goal
+  goalType      ChallengeGoalType
+  goalDescription String?
+
+  // Rewards
+  firstPlaceReward  Json?  // { points, badge, other }
+  secondPlaceReward Json?
+  thirdPlaceReward  Json?
+  participationReward Json?
+
+  // Restrictions
+  minTeamSize   Int       @default(2)
+  maxTeamSize   Int       @default(10)
+  maxTeams      Int?
+
+  // Stats
+  teamCount     Int       @default(0)
+
+  // Relations
+  participants  TeamCompetitionParticipant[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status])
+  @@index([startDate])
+  @@map("team_competitions")
+}
+
+model TeamCompetitionParticipant {
+  id              String          @id @default(cuid())
+  competitionId   String
+  teamId          String
+
+  // Progress
+  totalScore      Int             @default(0)
+  rank            Int?
+
+  // Relations
+  competition     TeamCompetition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  team            Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  joinedAt        DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([competitionId, teamId])
+  @@index([competitionId])
+  @@index([teamId])
+  @@map("team_competition_participants")
 }

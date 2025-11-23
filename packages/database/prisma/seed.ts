@@ -637,6 +637,106 @@ async function main() {
   })
   console.log('✅ Tutoring session and review created')
 
+  // Create challenges
+  const weeklyChallenge = await prisma.challenge.create({
+    data: {
+      title: 'Tjedni Sprint: 5 Lekcija',
+      description: 'Završi 5 lekcija ovaj tjedan i osvoji bonus bodove! Savršen način da ostaneš motiviran i napreduješ.',
+      shortDescription: 'Završi 5 lekcija za bonus bodove',
+      type: 'WEEKLY',
+      status: 'ACTIVE',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      goalType: 'LESSONS_COMPLETED',
+      goalTarget: 5,
+      pointsReward: 150,
+      isPublic: true,
+      createdById: admin.id,
+    },
+  })
+
+  const monthlyChallenge = await prisma.challenge.create({
+    data: {
+      title: 'Mjesečni Maraton: 30 Minuta Dnevno',
+      description: 'Uči najmanje 30 minuta dnevno kroz cijeli mjesec. Izgradi naviku kontinuiranog učenja i osvoji ekskluzivnu značku!',
+      shortDescription: 'Uči 30 min dnevno cijeli mjesec',
+      type: 'MONTHLY',
+      status: 'ACTIVE',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      goalType: 'MINUTES_LEARNED',
+      goalTarget: 900, // 30 min * 30 days
+      pointsReward: 500,
+      isPublic: true,
+      createdById: admin.id,
+    },
+  })
+
+  const quizChallenge = await prisma.challenge.create({
+    data: {
+      title: 'Quiz Majstor',
+      description: 'Položi 10 kvizova s minimalno 80% točnosti. Pokaži svoje znanje i osvoji titulu Quiz Majstora!',
+      shortDescription: 'Položi 10 kvizova s 80%+ točnosti',
+      type: 'SPECIAL',
+      status: 'ACTIVE',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
+      goalType: 'QUIZZES_PASSED',
+      goalTarget: 10,
+      pointsReward: 300,
+      isPublic: true,
+      createdById: admin.id,
+    },
+  })
+
+  // Add participants to weekly challenge
+  await prisma.challengeParticipant.createMany({
+    data: [
+      {
+        challengeId: weeklyChallenge.id,
+        userId: learner.id,
+        currentProgress: 2,
+      },
+      {
+        challengeId: weeklyChallenge.id,
+        userId: learner2.id,
+        currentProgress: 3,
+      },
+      {
+        challengeId: weeklyChallenge.id,
+        userId: learner3.id,
+        currentProgress: 1,
+      },
+    ],
+  })
+
+  // Update challenge participant counts
+  await prisma.challenge.update({
+    where: { id: weeklyChallenge.id },
+    data: { participantCount: 3 },
+  })
+
+  // Create a team
+  const team = await prisma.team.create({
+    data: {
+      name: 'Farmaceuti Heroji',
+      description: 'Tim entuzijastičnih farmaceuta koji uče zajedno!',
+      isPublic: true,
+      maxMembers: 10,
+      captainId: learner.id,
+      memberCount: 2,
+      members: {
+        createMany: {
+          data: [
+            { userId: learner.id, role: 'captain' },
+            { userId: learner2.id, role: 'member' },
+          ],
+        },
+      },
+    },
+  })
+  console.log('✅ Challenges and team created')
+
   console.log('\n🎉 Seeding completed successfully!')
   console.log('\n📋 Test Accounts:')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
@@ -663,6 +763,8 @@ async function main() {
   console.log(`   • Forum categories`)
   console.log(`   • 3 tutor profiles (approved tutors)`)
   console.log(`   • 1 tutoring request + 1 completed session`)
+  console.log(`   • 3 active challenges (weekly, monthly, special)`)
+  console.log(`   • 1 team with 2 members`)
   console.log('\n🚀 You can now login and test all features!')
 }
 
