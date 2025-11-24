@@ -802,6 +802,54 @@ async function main() {
   })
   console.log('✅ Social connections and activities created')
 
+  // Create notification templates
+  await prisma.notificationTemplate.createMany({
+    data: [
+      {
+        name: 'course_enrolled',
+        category: 'LEARNING',
+        channel: 'IN_APP',
+        title: 'Upisan u tečaj',
+        body: 'Uspješno ste se upisali u tečaj "{{courseName}}". Sretno s učenjem!',
+        actionText: 'Počni učiti',
+      },
+      {
+        name: 'course_completed',
+        category: 'LEARNING',
+        channel: 'EMAIL',
+        subject: 'Čestitamo! Završili ste tečaj',
+        title: 'Tečaj završen!',
+        body: 'Čestitamo {{userName}}! Uspješno ste završili tečaj "{{courseName}}".',
+        actionText: 'Pogledaj certifikat',
+      },
+      {
+        name: 'badge_earned',
+        category: 'ACHIEVEMENT',
+        channel: 'PUSH',
+        title: 'Nova značka!',
+        body: 'Osvojili ste značku "{{badgeName}}"! 🎉',
+        actionText: 'Pogledaj',
+      },
+      {
+        name: 'streak_reminder',
+        category: 'REMINDER',
+        channel: 'PUSH',
+        title: 'Ne zaboravi učiti!',
+        body: 'Tvoj streak od {{streakDays}} dana je u opasnosti. Uči danas da ga sačuvaš! 🔥',
+        actionText: 'Nastavi učiti',
+      },
+      {
+        name: 'new_follower',
+        category: 'SOCIAL',
+        channel: 'IN_APP',
+        title: 'Novi pratitelj',
+        body: '{{followerName}} te sada prati.',
+        actionText: 'Pogledaj profil',
+      },
+    ],
+  })
+  console.log('✅ Notification templates created')
+
   console.log('\n🎉 Seeding completed successfully!')
   console.log('\n📋 Test Accounts:')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
@@ -832,6 +880,7 @@ async function main() {
   console.log(`   • 1 team with 2 members`)
   console.log(`   • 5 social connections (follows)`)
   console.log(`   • 4 activity feed posts`)
+  console.log(`   • 5 notification templates`)
   console.log('\n🚀 You can now login and test all features!')
 }
 

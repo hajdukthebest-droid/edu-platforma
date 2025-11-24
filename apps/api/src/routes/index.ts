@@ -36,6 +36,7 @@ import streakRoutes from './streakRoutes'
 import tutoringRoutes from './tutoringRoutes'
 import challengeRoutes from './challengeRoutes'
 import socialRoutes from './socialRoutes'
+import advancedNotificationRoutes from './advancedNotificationRoutes'
 
 const router = Router()
 
@@ -78,6 +79,7 @@ router.use('/streaks', streakRoutes)
 router.use('/tutoring', tutoringRoutes)
 router.use('/challenges', challengeRoutes)
 router.use('/social', socialRoutes)
+router.use('/notification-settings', advancedNotificationRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -123,6 +125,7 @@ router.get('/', (req, res) => {
       tutoring: '/api/tutoring',
       challenges: '/api/challenges',
       social: '/api/social',
+      notificationSettings: '/api/notification-settings',
     },
   })
 })

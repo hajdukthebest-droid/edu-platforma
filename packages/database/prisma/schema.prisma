@@ -145,6 +145,11 @@ model User {
   activityLikes     ActivityLike[] @relation("UserActivityLikes")
   activityComments  ActivityComment[] @relation("UserActivityComments")
   socialProfile     UserProfile? @relation("UserSocialProfile")
+  notificationPrefs NotificationPreferences? @relation("UserNotificationPrefs")
+  pushSubscriptions PushSubscription[] @relation("UserPushSubscriptions")
+  scheduledReminders ScheduledReminder[] @relation("UserScheduledReminders")
+  notificationLogs  NotificationLog[] @relation("UserNotificationLogs")
+  emailDigests      EmailDigestQueue[] @relation("UserEmailDigests")
 
   @@index([email])
   @@index([role])
@@ -2543,4 +2548,229 @@ model UserProfile {
 
   @@index([userId])
   @@map("user_profiles")
+}
+
+// ============================================
+// ADVANCED NOTIFICATION SYSTEM
+// ============================================
+
+enum NotificationChannel {
+  IN_APP      // In-app notifications
+  EMAIL       // Email notifications
+  PUSH        // Push notifications (web/mobile)
+  SMS         // SMS notifications (optional)
+}
+
+enum NotificationCategory {
+  LEARNING    // Course progress, completions
+  SOCIAL      // Follows, likes, comments
+  ACHIEVEMENT // Badges, streaks, challenges
+  REMINDER    // Study reminders, deadlines
+  SYSTEM      // Platform updates, maintenance
+  MARKETING   // Promotions, new courses
+}
+
+enum ReminderFrequency {
+  ONCE        // One-time reminder
+  DAILY       // Every day
+  WEEKLY      // Every week
+  CUSTOM      // Custom schedule
+}
+
+model NotificationPreferences {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+
+  // Global settings
+  enabled         Boolean  @default(true)
+  quietHoursStart String?  // "22:00"
+  quietHoursEnd   String?  // "08:00"
+  timezone        String   @default("Europe/Zagreb")
+
+  // Channel preferences
+  emailEnabled    Boolean  @default(true)
+  pushEnabled     Boolean  @default(true)
+  smsEnabled      Boolean  @default(false)
+
+  // Category preferences (JSON for flexibility)
+  // { learning: { inApp: true, email: true, push: false }, ... }
+  categorySettings Json?
+
+  // Email digest settings
+  emailDigestEnabled Boolean @default(true)
+  emailDigestFrequency String @default("daily") // daily, weekly, never
+  emailDigestDay    Int?     // 0-6 for weekly (0=Sunday)
+  emailDigestTime   String   @default("09:00")
+  lastDigestSentAt  DateTime?
+
+  // Relations
+  user            User     @relation("UserNotificationPrefs", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+model PushSubscription {
+  id              String   @id @default(cuid())
+  userId          String
+
+  // Web Push subscription data
+  endpoint        String
+  p256dh          String   // Public key
+  auth            String   // Auth secret
+
+  // Device info
+  deviceType      String?  // web, android, ios
+  deviceName      String?
+  userAgent       String?
+
+  // Status
+  isActive        Boolean  @default(true)
+  lastUsedAt      DateTime?
+  failureCount    Int      @default(0)
+
+  // Relations
+  user            User     @relation("UserPushSubscriptions", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+  @@index([isActive])
+  @@map("push_subscriptions")
+}
+
+model ScheduledReminder {
+  id              String            @id @default(cuid())
+  userId          String
+
+  // Reminder details
+  title           String
+  message         String
+  type            String            // study, deadline, custom
+
+  // Scheduling
+  frequency       ReminderFrequency @default(ONCE)
+  scheduledTime   String            // "09:00"
+  scheduledDays   Int[]             // [1,2,3,4,5] = Mon-Fri for weekly
+  nextRunAt       DateTime
+  lastRunAt       DateTime?
+
+  // Target (optional)
+  courseId        String?
+  lessonId        String?
+
+  // Channels
+  channels        NotificationChannel[]
+
+  // Status
+  isActive        Boolean           @default(true)
+  runCount        Int               @default(0)
+  maxRuns         Int?              // null = unlimited
+
+  // Relations
+  user            User              @relation("UserScheduledReminders", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([nextRunAt])
+  @@index([isActive])
+  @@map("scheduled_reminders")
+}
+
+model NotificationTemplate {
+  id              String   @id @default(cuid())
+
+  // Template info
+  name            String   @unique
+  category        NotificationCategory
+  channel         NotificationChannel
+
+  // Content templates (support variables like {{userName}})
+  subject         String?  // For email
+  title           String
+  body            String
+  actionUrl       String?
+  actionText      String?
+
+  // Rich content
+  icon            String?
+  image           String?
+
+  // Settings
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([category])
+  @@index([channel])
+  @@map("notification_templates")
+}
+
+model NotificationLog {
+  id              String              @id @default(cuid())
+  userId          String
+
+  // Notification details
+  category        NotificationCategory
+  channel         NotificationChannel
+  templateId      String?
+
+  title           String
+  body            String
+  actionUrl       String?
+
+  // Delivery status
+  status          String              @default("pending") // pending, sent, delivered, failed, clicked
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  clickedAt       DateTime?
+  failureReason   String?
+
+  // Metadata
+  metadata        Json?               // Additional context data
+
+  // Relations
+  user            User                @relation("UserNotificationLogs", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime            @default(now())
+
+  @@index([userId])
+  @@index([category])
+  @@index([status])
+  @@index([createdAt])
+  @@map("notification_logs")
+}
+
+model EmailDigestQueue {
+  id              String   @id @default(cuid())
+  userId          String
+
+  // Digest content (accumulated items)
+  items           Json     // Array of digest items
+  itemCount       Int      @default(0)
+
+  // Scheduling
+  scheduledFor    DateTime
+  processedAt     DateTime?
+
+  // Status
+  status          String   @default("pending") // pending, processing, sent, failed
+
+  // Relations
+  user            User     @relation("UserEmailDigests", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([scheduledFor])
+  @@index([status])
+  @@map("email_digest_queue")
 }
