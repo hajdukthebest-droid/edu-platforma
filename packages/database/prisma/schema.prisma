@@ -139,6 +139,12 @@ model User {
   challengeParticipations ChallengeParticipant[] @relation("UserChallenges")
   challengeLeaderboards ChallengeLeaderboard[] @relation("UserChallengeLeaderboard")
   teamMemberships   TeamMember[] @relation("UserTeamMemberships")
+  followers         UserFollow[] @relation("UserFollowing")
+  following         UserFollow[] @relation("UserFollowers")
+  activities        Activity[] @relation("UserActivities")
+  activityLikes     ActivityLike[] @relation("UserActivityLikes")
+  activityComments  ActivityComment[] @relation("UserActivityComments")
+  socialProfile     UserProfile? @relation("UserSocialProfile")
 
   @@index([email])
   @@index([role])
@@ -2385,4 +2391,156 @@ model TeamCompetitionParticipant {
   @@index([competitionId])
   @@index([teamId])
   @@map("team_competition_participants")
+}
+
+// ============================================
+// ACTIVITY FEED & SOCIAL FEATURES
+// ============================================
+
+enum ActivityType {
+  COURSE_ENROLLED     // User enrolled in a course
+  COURSE_COMPLETED    // User completed a course
+  LESSON_COMPLETED    // User completed a lesson
+  QUIZ_PASSED         // User passed a quiz
+  BADGE_EARNED        // User earned a badge
+  CERTIFICATE_EARNED  // User earned a certificate
+  STREAK_MILESTONE    // User reached streak milestone
+  CHALLENGE_JOINED    // User joined a challenge
+  CHALLENGE_COMPLETED // User completed a challenge
+  LEVEL_UP            // User leveled up
+  REVIEW_POSTED       // User posted a review
+  FORUM_POST          // User created forum post
+  STUDY_GROUP_JOINED  // User joined study group
+  TUTOR_SESSION       // User completed tutoring session
+  ACHIEVEMENT_UNLOCKED // User unlocked an achievement
+}
+
+model UserFollow {
+  id          String   @id @default(cuid())
+  followerId  String   // User who is following
+  followingId String   // User being followed
+
+  // Relations
+  follower    User     @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("user_follows")
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  userId      String
+
+  // Activity details
+  type        ActivityType
+  title       String
+  description String?
+
+  // Related entities (optional, depends on type)
+  courseId    String?
+  lessonId    String?
+  badgeId     String?
+  challengeId String?
+  achievementId String?
+
+  // Additional data
+  metadata    Json?        // { points: 100, level: 5, etc }
+
+  // Visibility
+  isPublic    Boolean      @default(true)
+
+  // Engagement
+  likesCount  Int          @default(0)
+  commentsCount Int        @default(0)
+
+  // Relations
+  user        User         @relation("UserActivities", fields: [userId], references: [id], onDelete: Cascade)
+  likes       ActivityLike[]
+  comments    ActivityComment[]
+
+  createdAt   DateTime     @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([isPublic])
+  @@map("activities")
+}
+
+model ActivityLike {
+  id          String   @id @default(cuid())
+  activityId  String
+  userId      String
+
+  // Relations
+  activity    Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user        User     @relation("UserActivityLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([activityId, userId])
+  @@index([activityId])
+  @@index([userId])
+  @@map("activity_likes")
+}
+
+model ActivityComment {
+  id          String   @id @default(cuid())
+  activityId  String
+  userId      String
+
+  content     String
+
+  // Reply support
+  parentId    String?
+  parent      ActivityComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     ActivityComment[] @relation("CommentReplies")
+
+  // Relations
+  activity    Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user        User     @relation("UserActivityComments", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([activityId])
+  @@index([userId])
+  @@index([parentId])
+  @@map("activity_comments")
+}
+
+// User profile enhancements for social features
+model UserProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+
+  // Social stats
+  followersCount  Int      @default(0)
+  followingCount  Int      @default(0)
+  activitiesCount Int      @default(0)
+
+  // Privacy settings
+  showActivity    Boolean  @default(true)
+  showProgress    Boolean  @default(true)
+  showBadges      Boolean  @default(true)
+  allowFollow     Boolean  @default(true)
+
+  // Profile customization
+  coverImage      String?
+  socialLinks     Json?    // { twitter, linkedin, github }
+  interests       String[] // Learning interests/topics
+
+  // Relations
+  user            User     @relation("UserSocialProfile", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@map("user_profiles")
 }

@@ -737,6 +737,71 @@ async function main() {
   })
   console.log('✅ Challenges and team created')
 
+  // Create social connections (follows)
+  await prisma.userFollow.createMany({
+    data: [
+      { followerId: learner.id, followingId: instructor.id },
+      { followerId: learner.id, followingId: instructor2.id },
+      { followerId: learner2.id, followingId: instructor.id },
+      { followerId: learner3.id, followingId: instructor.id },
+      { followerId: learner2.id, followingId: learner.id },
+    ],
+  })
+
+  // Create user profiles with social stats
+  await prisma.userProfile.createMany({
+    data: [
+      {
+        userId: instructor.id,
+        followersCount: 3,
+        followingCount: 0,
+        activitiesCount: 2,
+        showActivity: true,
+        interests: ['Farmakologija', 'Klinička istraživanja'],
+      },
+      {
+        userId: learner.id,
+        followersCount: 1,
+        followingCount: 2,
+        activitiesCount: 3,
+        showActivity: true,
+        interests: ['Farmacija', 'Kardiologija'],
+      },
+    ],
+  })
+
+  // Create sample activities
+  await prisma.activity.createMany({
+    data: [
+      {
+        userId: learner.id,
+        type: 'COURSE_ENROLLED',
+        title: 'Upisan u tečaj: Osnove farmakologije',
+        isPublic: true,
+      },
+      {
+        userId: learner.id,
+        type: 'BADGE_EARNED',
+        title: 'Osvojena značka: Prvi koraci',
+        isPublic: true,
+      },
+      {
+        userId: learner2.id,
+        type: 'STREAK_MILESTONE',
+        title: 'Dostigao 7-dnevni streak!',
+        metadata: { streakDays: 7 },
+        isPublic: true,
+      },
+      {
+        userId: instructor.id,
+        type: 'COURSE_COMPLETED',
+        title: 'Objavio novi tečaj: Napredna farmakoterapija',
+        isPublic: true,
+      },
+    ],
+  })
+  console.log('✅ Social connections and activities created')
+
   console.log('\n🎉 Seeding completed successfully!')
   console.log('\n📋 Test Accounts:')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
@@ -765,6 +830,8 @@ async function main() {
   console.log(`   • 1 tutoring request + 1 completed session`)
   console.log(`   • 3 active challenges (weekly, monthly, special)`)
   console.log(`   • 1 team with 2 members`)
+  console.log(`   • 5 social connections (follows)`)
+  console.log(`   • 4 activity feed posts`)
   console.log('\n🚀 You can now login and test all features!')
 }
 
