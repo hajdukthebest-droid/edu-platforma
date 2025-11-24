@@ -150,6 +150,7 @@ model User {
   scheduledReminders ScheduledReminder[] @relation("UserScheduledReminders")
   notificationLogs  NotificationLog[] @relation("UserNotificationLogs")
   emailDigests      EmailDigestQueue[] @relation("UserEmailDigests")
+  studyPlan         StudyPlan? @relation("UserStudyPlan")
 
   @@index([email])
   @@index([role])
@@ -2773,4 +2774,273 @@ model EmailDigestQueue {
   @@index([scheduledFor])
   @@index([status])
   @@map("email_digest_queue")
+}
+
+// ============================================
+// STUDY PLANNER & CALENDAR INTEGRATION
+// ============================================
+
+enum StudySessionStatus {
+  PLANNED      // Scheduled but not started
+  IN_PROGRESS  // Currently studying
+  COMPLETED    // Finished
+  MISSED       // Didn't show up
+  CANCELLED    // Cancelled by user
+}
+
+enum GoalStatus {
+  ACTIVE       // Currently working on
+  COMPLETED    // Goal achieved
+  FAILED       // Deadline passed without completion
+  PAUSED       // Temporarily paused
+}
+
+enum GoalType {
+  COURSE_COMPLETION    // Complete a course
+  LESSON_COUNT         // Complete X lessons
+  STUDY_HOURS          // Study for X hours
+  QUIZ_SCORE           // Achieve X% on quizzes
+  STREAK               // Maintain X day streak
+  CUSTOM               // Custom goal
+}
+
+model StudyPlan {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+
+  // Plan settings
+  weeklyHoursGoal Int?     // Target hours per week
+  preferredTimes  Json?    // { monday: ["09:00-11:00", "14:00-16:00"], ... }
+  studyPace       String   @default("moderate") // slow, moderate, fast
+
+  // Preferences
+  breakDuration   Int      @default(10) // Minutes
+  sessionDuration Int      @default(45) // Minutes
+  timezone        String   @default("Europe/Zagreb")
+
+  // Statistics
+  totalStudyHours Float    @default(0)
+  completedSessions Int    @default(0)
+  missedSessions  Int      @default(0)
+
+  // Relations
+  user            User     @relation("UserStudyPlan", fields: [userId], references: [id], onDelete: Cascade)
+  sessions        StudySession[]
+  goals           StudyGoal[]
+  blocks          StudyBlock[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@map("study_plans")
+}
+
+model StudySession {
+  id              String              @id @default(cuid())
+  studyPlanId     String
+  userId          String
+
+  // Session details
+  title           String
+  description     String?
+
+  // Timing
+  startTime       DateTime
+  endTime         DateTime
+  actualStartTime DateTime?
+  actualEndTime   DateTime?
+  duration        Int                 // Planned duration in minutes
+
+  // Content
+  courseId        String?
+  lessonId        String?
+  topics          String[]
+
+  // Status
+  status          StudySessionStatus  @default(PLANNED)
+
+  // Reminders
+  reminderSent    Boolean             @default(false)
+  reminderMinutes Int                 @default(15) // Remind X minutes before
+
+  // Integration
+  calendarEventId String?             // External calendar event ID
+
+  // Notes
+  notes           String?
+  outcome         String?             // What was learned/accomplished
+
+  // Relations
+  studyPlan       StudyPlan           @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([studyPlanId])
+  @@index([userId])
+  @@index([startTime])
+  @@index([status])
+  @@map("study_sessions")
+}
+
+model StudyGoal {
+  id              String     @id @default(cuid())
+  studyPlanId     String
+  userId          String
+
+  // Goal details
+  title           String
+  description     String?
+  type            GoalType
+
+  // Target
+  targetValue     Int        // Depends on type (hours, lessons, percentage, etc.)
+  currentValue    Int        @default(0)
+
+  // Timing
+  deadline        DateTime?
+  startDate       DateTime   @default(now())
+  completedAt     DateTime?
+
+  // Status
+  status          GoalStatus @default(ACTIVE)
+
+  // Related content
+  courseId        String?
+  categoryId      String?
+
+  // Progress tracking
+  progressHistory Json?      // { "2024-01-15": 10, "2024-01-16": 15, ... }
+
+  // Relations
+  studyPlan       StudyPlan  @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([studyPlanId])
+  @@index([userId])
+  @@index([status])
+  @@index([deadline])
+  @@map("study_goals")
+}
+
+model StudyBlock {
+  id              String     @id @default(cuid())
+  studyPlanId     String
+  userId          String
+
+  // Block details
+  title           String
+  description     String?
+
+  // Recurrence
+  isRecurring     Boolean    @default(false)
+  recurrenceRule  String?    // RRULE format (e.g., "FREQ=WEEKLY;BYDAY=MO,WE,FR")
+
+  // Timing (for single occurrence or start of recurrence)
+  startTime       DateTime
+  endTime         DateTime
+  daysOfWeek      Int[]      // [1,3,5] = Mon, Wed, Fri
+
+  // Relations
+  studyPlan       StudyPlan  @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([studyPlanId])
+  @@index([userId])
+  @@index([startTime])
+  @@map("study_blocks")
+}
+
+model CalendarIntegration {
+  id              String   @id @default(cuid())
+  userId          String
+
+  // Provider
+  provider        String   // google, outlook, apple, ical
+  providerUserId  String?  // User's ID on the provider
+
+  // OAuth tokens (encrypted in production)
+  accessToken     String?
+  refreshToken    String?
+  expiresAt       DateTime?
+
+  // Calendar info
+  calendarId      String?  // Specific calendar ID
+  calendarName    String?
+
+  // Sync settings
+  syncEnabled     Boolean  @default(true)
+  lastSyncAt      DateTime?
+  lastSyncStatus  String?  // success, error
+
+  // Settings
+  createEvents    Boolean  @default(true)  // Auto-create calendar events
+  updateEvents    Boolean  @default(true)  // Sync updates
+  deleteEvents    Boolean  @default(false) // Delete events when sessions deleted
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@map("calendar_integrations")
+}
+
+model StudySessionTemplate {
+  id              String   @id @default(cuid())
+  userId          String
+
+  // Template details
+  name            String
+  description     String?
+
+  // Default settings
+  duration        Int      // Minutes
+  topics          String[]
+  notes           String?
+
+  // Recurrence defaults
+  daysOfWeek      Int[]    // Preferred days
+  preferredTime   String?  // "09:00"
+
+  // Usage
+  usageCount      Int      @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@map("study_session_templates")
+}
+
+model StudyStatistics {
+  id              String   @id @default(cuid())
+  userId          String
+  date            DateTime @db.Date
+
+  // Daily stats
+  minutesStudied  Int      @default(0)
+  sessionsCompleted Int    @default(0)
+  sessionsMissed  Int      @default(0)
+  lessonsCompleted Int     @default(0)
+  quizzesCompleted Int     @default(0)
+
+  // Focus metrics
+  avgFocusScore   Float?   // If tracking focus/distraction
+  breaksTaken     Int      @default(0)
+
+  // Goal progress
+  goalsCompleted  Int      @default(0)
+
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+  @@map("study_statistics")
 }
