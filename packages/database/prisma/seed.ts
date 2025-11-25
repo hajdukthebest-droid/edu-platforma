@@ -802,6 +802,168 @@ async function main() {
   })
   console.log('✅ Social connections and activities created')
 
+  // Create study planner data for learner
+  const studyPlan = await prisma.studyPlan.create({
+    data: {
+      userId: learner.id,
+      weeklyGoalHours: 10,
+      preferredStudyTimes: ['09:00', '14:00', '20:00'],
+      focusAreas: ['Farmakologija', 'Biokemija', 'Toksikologija'],
+      totalStudyHours: 12.5,
+      completedSessions: 8,
+      missedSessions: 1,
+      currentStreak: 5,
+      longestStreak: 7,
+    },
+  })
+
+  // Create study sessions
+  const now = new Date()
+  const tomorrow = new Date(now)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const nextWeek = new Date(now)
+  nextWeek.setDate(nextWeek.getDate() + 7)
+
+  await prisma.studySession.createMany({
+    data: [
+      {
+        userId: learner.id,
+        title: 'Farmakologija - Osnove',
+        description: 'Pregledati osnove farmakologije i kardiovaskularni sustav',
+        startTime: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+        endTime: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000 + 90 * 60 * 1000),
+        duration: 90,
+        status: 'COMPLETED',
+        actualStartTime: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+        actualEndTime: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000 + 95 * 60 * 1000),
+        topics: ['Farmakologija', 'Kardiovaskularni lijekovi'],
+        notes: 'Odlična sesija, sve jasno!',
+        outcome: 'PRODUCTIVE',
+      },
+      {
+        userId: learner.id,
+        title: 'Biokemija - Metabolizam',
+        description: 'Učenje metaboličkih putova',
+        startTime: tomorrow,
+        endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000),
+        duration: 60,
+        status: 'SCHEDULED',
+        topics: ['Biokemija', 'Metabolizam'],
+        reminderMinutes: 30,
+      },
+      {
+        userId: learner.id,
+        title: 'Toksikologija - Test priprema',
+        description: 'Priprema za test iz toksikologije',
+        startTime: nextWeek,
+        endTime: new Date(nextWeek.getTime() + 120 * 60 * 1000),
+        duration: 120,
+        status: 'SCHEDULED',
+        topics: ['Toksikologija', 'Test'],
+        reminderMinutes: 60,
+      },
+    ],
+  })
+
+  // Create study goals
+  await prisma.studyGoal.createMany({
+    data: [
+      {
+        userId: learner.id,
+        title: 'Završi 10 lekcija',
+        description: 'Završiti barem 10 lekcija ovaj mjesec',
+        type: 'LESSONS_COMPLETED',
+        targetValue: 10,
+        currentValue: 7,
+        deadline: new Date(now.getTime() + 20 * 24 * 60 * 60 * 1000),
+        status: 'ACTIVE',
+        progressHistory: [
+          { date: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000), value: 3 },
+          { date: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000), value: 5 },
+          { date: now, value: 7 },
+        ],
+      },
+      {
+        userId: learner.id,
+        title: '20 sati učenja',
+        description: 'Ukupno 20 sati učenja ovaj mjesec',
+        type: 'STUDY_HOURS',
+        targetValue: 20,
+        currentValue: 12.5,
+        deadline: new Date(now.getTime() + 20 * 24 * 60 * 60 * 1000),
+        status: 'ACTIVE',
+        progressHistory: [
+          { date: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), value: 5 },
+          { date: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000), value: 9 },
+          { date: now, value: 12.5 },
+        ],
+      },
+    ],
+  })
+
+  // Create recurring study block
+  await prisma.studyBlock.create({
+    data: {
+      userId: learner.id,
+      title: 'Jutarnja sesija učenja',
+      description: 'Svako jutro od 9 do 11',
+      isRecurring: true,
+      recurrenceRule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR',
+      startTime: new Date(now.setHours(9, 0, 0, 0)),
+      endTime: new Date(now.setHours(11, 0, 0, 0)),
+      daysOfWeek: [1, 3, 5],
+    },
+  })
+
+  // Create session template
+  await prisma.studySessionTemplate.create({
+    data: {
+      userId: learner.id,
+      name: 'Brza revizija',
+      description: 'Kratka 30-minutna sesija za brzu reviziju gradiva',
+      duration: 30,
+      topics: ['Revizija', 'Ponavljanje'],
+      notes: 'Fokusiraj se na ključne koncepte',
+      daysOfWeek: [1, 2, 3, 4, 5],
+      preferredTime: '20:00',
+    },
+  })
+
+  // Create some study statistics
+  await prisma.studyStatistics.createMany({
+    data: [
+      {
+        userId: learner.id,
+        date: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+        totalMinutes: 95,
+        sessionsCompleted: 1,
+        sessionsMissed: 0,
+        focusScore: 85,
+        topicsStudied: ['Farmakologija', 'Kardiovaskularni lijekovi'],
+      },
+      {
+        userId: learner.id,
+        date: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+        totalMinutes: 60,
+        sessionsCompleted: 1,
+        sessionsMissed: 0,
+        focusScore: 90,
+        topicsStudied: ['Biokemija'],
+      },
+      {
+        userId: learner.id,
+        date: now,
+        totalMinutes: 45,
+        sessionsCompleted: 1,
+        sessionsMissed: 0,
+        focusScore: 88,
+        topicsStudied: ['Toksikologija'],
+      },
+    ],
+  })
+
+  console.log('✅ Study planner data created')
+
   // Create notification templates
   await prisma.notificationTemplate.createMany({
     data: [
@@ -881,6 +1043,9 @@ async function main() {
   console.log(`   • 5 social connections (follows)`)
   console.log(`   • 4 activity feed posts`)
   console.log(`   • 5 notification templates`)
+  console.log(`   • 1 study plan with 3 sessions (1 completed, 2 scheduled)`)
+  console.log(`   • 2 study goals (lessons + hours tracking)`)
+  console.log(`   • 1 recurring study block + 1 session template`)
   console.log('\n🚀 You can now login and test all features!')
 }
 

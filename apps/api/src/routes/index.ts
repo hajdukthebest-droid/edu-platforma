@@ -37,6 +37,7 @@ import tutoringRoutes from './tutoringRoutes'
 import challengeRoutes from './challengeRoutes'
 import socialRoutes from './socialRoutes'
 import advancedNotificationRoutes from './advancedNotificationRoutes'
+import studyPlannerRoutes from './studyPlannerRoutes'
 
 const router = Router()
 
@@ -80,6 +81,7 @@ router.use('/tutoring', tutoringRoutes)
 router.use('/challenges', challengeRoutes)
 router.use('/social', socialRoutes)
 router.use('/notification-settings', advancedNotificationRoutes)
+router.use('/study-planner', studyPlannerRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -126,6 +128,7 @@ router.get('/', (req, res) => {
       challenges: '/api/challenges',
       social: '/api/social',
       notificationSettings: '/api/notification-settings',
+      studyPlanner: '/api/study-planner',
     },
   })
 })
