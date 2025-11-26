@@ -1,0 +1,682 @@
+{
+  "info": {
+    "name": "Edu Platforma QA Tests - Features #28-31",
+    "description": "Comprehensive API tests for Study Planner, Adaptive Learning, Content Summarization, and Multi-Language Translation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3001/api",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "course_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "session_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "category_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Authentication",
+      "item": [
+        {
+          "name": "Login as Learner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has token\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.token).to.exist;",
+                  "    pm.collectionVariables.set(\"auth_token\", jsonData.data.token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"learner@edu-platforma.hr\",\n  \"password\": \"learner123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Feature #28 - Study Planner",
+      "item": [
+        {
+          "name": "Create Study Plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 201\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has success true\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"weeklyGoalHours\": 15,\n  \"preferredStudyTimes\": [\"09:00\", \"14:00\", \"20:00\"],\n  \"focusAreas\": [\"Farmakologija\", \"Biokemija\", \"Toksikologija\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/study-planner/plan",
+              "host": ["{{base_url}}"],
+              "path": ["study-planner", "plan"]
+            }
+          }
+        },
+        {
+          "name": "Get Study Plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/study-planner/plan",
+              "host": ["{{base_url}}"],
+              "path": ["study-planner", "plan"]
+            }
+          }
+        },
+        {
+          "name": "Create Study Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Session created\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data.id).to.exist;",
+                  "    pm.collectionVariables.set(\"session_id\", jsonData.data.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Test Session\",\n  \"description\": \"Testing session creation\",\n  \"startTime\": \"{{$isoTimestamp}}\",\n  \"endTime\": \"2025-12-01T12:00:00Z\",\n  \"duration\": 60,\n  \"topics\": [\"Testing\", \"QA\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/study-planner/sessions",
+              "host": ["{{base_url}}"],
+              "path": ["study-planner", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Get All Sessions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has sessions array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/study-planner/sessions",
+              "host": ["{{base_url}}"],
+              "path": ["study-planner", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Create Study Goal",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Complete 10 lessons\",\n  \"description\": \"Monthly goal\",\n  \"type\": \"LESSONS_COMPLETED\",\n  \"targetValue\": 10,\n  \"deadline\": \"2025-12-31T23:59:59Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/study-planner/goals",
+              "host": ["{{base_url}}"],
+              "path": ["study-planner", "goals"]
+            }
+          }
+        },
+        {
+          "name": "Create Session Template",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Quick Review\",\n  \"description\": \"30-minute quick review\",\n  \"duration\": 30,\n  \"topics\": [\"Review\", \"Quick\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/study-planner/templates",
+              "host": ["{{base_url}}"],
+              "path": ["study-planner", "templates"]
+            }
+          }
+        },
+        {
+          "name": "Get Study Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/study-planner/statistics",
+              "host": ["{{base_url}}"],
+              "path": ["study-planner", "statistics"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Feature #29 - Adaptive Learning",
+      "item": [
+        {
+          "name": "Get Adaptive Path",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/adaptive/path/{{course_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["adaptive", "path", "{{course_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Suggested Difficulty",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/adaptive/difficulty/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["adaptive", "difficulty", "{{category_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Review Schedule",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/adaptive/review-schedule/{{course_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["adaptive", "review-schedule", "{{course_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Learning Pathway",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/adaptive/learning-pathway/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["adaptive", "learning-pathway", "{{category_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Learning Insights",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Has comprehensive insights\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.adaptivePath).to.exist;",
+                  "    pm.expect(jsonData.data.reviewSchedule).to.exist;",
+                  "    pm.expect(jsonData.data.summary).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/adaptive/insights/{{course_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["adaptive", "insights", "{{course_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Feature #30 - Content Summarization",
+      "item": [
+        {
+          "name": "Summarize Text",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Has summary\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.summary).to.exist;",
+                  "    pm.expect(jsonData.data.compressionRatio).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Farmakologija je znanstvena disciplina koja proučava međudjelovanje lijekova i živih organizama. Ova grana medicine bavi se istraživanjem kako lijekovi djeluju na tijelo, njihovim mehanizmima djelovanja, te nuspojavama. Farmakologija također proučava kako tijelo metabolizira i izlučuje lijekove. Znanje iz farmakologije ključno je za razvoj novih lijekova i terapijskih pristupa. Moderna farmakologija koristi napredne tehnologije i interdisciplinarni pristup.\",\n  \"maxSentences\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/summarize/text",
+              "host": ["{{base_url}}"],
+              "path": ["summarize", "text"]
+            }
+          }
+        },
+        {
+          "name": "Extract Keywords",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Has keywords\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.keywords).to.be.an('array');",
+                  "    pm.expect(jsonData.data.tags).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Farmakologija lijekovi metabolizam nuspojave terapija klinička praksa medicinska znanost istraživanje razvoj tehnologija interdisciplinarni pristup\",\n  \"maxKeywords\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/summarize/keywords",
+              "host": ["{{base_url}}"],
+              "path": ["summarize", "keywords"]
+            }
+          }
+        },
+        {
+          "name": "Get Course Overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/summarize/course/{{course_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["summarize", "course", "{{course_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get User Learning Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/summarize/user-learning",
+              "host": ["{{base_url}}"],
+              "path": ["summarize", "user-learning"]
+            }
+          }
+        },
+        {
+          "name": "Empty Text (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/summarize/text",
+              "host": ["{{base_url}}"],
+              "path": ["summarize", "text"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Feature #31 - Multi-Language Translation",
+      "item": [
+        {
+          "name": "Get Course with HR Translation (Public)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/translations/course/{{course_id}}/HR",
+              "host": ["{{base_url}}"],
+              "path": ["translations", "course", "{{course_id}}", "HR"]
+            }
+          }
+        },
+        {
+          "name": "Get Course with EN Translation (Public)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/translations/course/{{course_id}}/EN",
+              "host": ["{{base_url}}"],
+              "path": ["translations", "course", "{{course_id}}", "EN"]
+            }
+          }
+        },
+        {
+          "name": "Get Translation Status (Public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Has status for HR and EN\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.HR).to.exist;",
+                  "    pm.expect(jsonData.data.EN).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/translations/status/{{course_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["translations", "status", "{{course_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Check Translation Exists (Public)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/translations/check/course/{{course_id}}/EN",
+              "host": ["{{base_url}}"],
+              "path": ["translations", "check", "course", "{{course_id}}", "EN"]
+            }
+          }
+        },
+        {
+          "name": "Create Course Translation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{course_id}}\",\n  \"locale\": \"EN\",\n  \"title\": \"Postman Test Translation\",\n  \"description\": \"This is a test translation created from Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/translations/course",
+              "host": ["{{base_url}}"],
+              "path": ["translations", "course"]
+            }
+          }
+        },
+        {
+          "name": "Invalid Locale (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/translations/course/{{course_id}}/FR",
+              "host": ["{{base_url}}"],
+              "path": ["translations", "course", "{{course_id}}", "FR"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "API Health & Info",
+      "item": [
+        {
+          "name": "Get API Info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Has endpoints list\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.endpoints).to.exist;",
+                  "    pm.expect(jsonData.endpoints.studyPlanner).to.exist;",
+                  "    pm.expect(jsonData.endpoints.adaptiveLearning).to.exist;",
+                  "    pm.expect(jsonData.endpoints.contentSummarization).to.exist;",
+                  "    pm.expect(jsonData.endpoints.translations).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
