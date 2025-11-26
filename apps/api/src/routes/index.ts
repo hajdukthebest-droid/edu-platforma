@@ -40,6 +40,7 @@ import advancedNotificationRoutes from './advancedNotificationRoutes'
 import studyPlannerRoutes from './studyPlannerRoutes'
 import adaptiveLearningRoutes from './adaptiveLearningRoutes'
 import contentSummarizationRoutes from './contentSummarizationRoutes'
+import translationRoutes from './translationRoutes'
 
 const router = Router()
 
@@ -86,6 +87,7 @@ router.use('/notification-settings', advancedNotificationRoutes)
 router.use('/study-planner', studyPlannerRoutes)
 router.use('/adaptive', adaptiveLearningRoutes)
 router.use('/summarize', contentSummarizationRoutes)
+router.use('/translations', translationRoutes)
 
 // API info
 router.get('/', (req, res) => {
@@ -135,6 +137,7 @@ router.get('/', (req, res) => {
       studyPlanner: '/api/study-planner',
       adaptiveLearning: '/api/adaptive',
       contentSummarization: '/api/summarize',
+      translations: '/api/translations',
     },
   })
 })
