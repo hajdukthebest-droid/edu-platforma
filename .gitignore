@@ -66,6 +66,14 @@ logs
 prisma/dev.db
 prisma/migrations
 
+# Prisma compiled files
+packages/database/prisma/*.js
+packages/database/prisma/*.d.ts
+packages/database/prisma/*.map
+packages/database/prisma/seeds/*.js
+packages/database/prisma/seeds/*.d.ts
+packages/database/prisma/seeds/*.map
+
 # Uploads
 uploads/
 temp/
