@@ -8,7 +8,7 @@ class AdaptiveLearningController {
    */
   async getAdaptivePath(req: Request, res: Response) {
     try {
-      const userId = req.user?.userId
+      const userId = req.user?.id
       const { courseId } = req.params
 
       if (!userId) {
@@ -50,7 +50,7 @@ class AdaptiveLearningController {
    */
   async getSuggestedDifficulty(req: Request, res: Response) {
     try {
-      const userId = req.user?.userId
+      const userId = req.user?.id
       const { categoryId } = req.params
 
       if (!userId) {
@@ -95,7 +95,7 @@ class AdaptiveLearningController {
    */
   async getReviewSchedule(req: Request, res: Response) {
     try {
-      const userId = req.user?.userId
+      const userId = req.user?.id
       const { courseId } = req.params
 
       if (!userId) {
@@ -137,7 +137,7 @@ class AdaptiveLearningController {
    */
   async getLearningPathway(req: Request, res: Response) {
     try {
-      const userId = req.user?.userId
+      const userId = req.user?.id
       const { categoryId } = req.params
 
       if (!userId) {
@@ -179,7 +179,7 @@ class AdaptiveLearningController {
    */
   async getLearningInsights(req: Request, res: Response) {
     try {
-      const userId = req.user?.userId
+      const userId = req.user?.id
       const { courseId } = req.params
 
       if (!userId) {
@@ -242,7 +242,7 @@ class AdaptiveLearningController {
    * Helper: Get difficulty description
    */
   private getDifficultyDescription(level: string): string {
-    const descriptions = {
+    const descriptions: Record<string, string> = {
       BEGINNER: 'Start with foundational courses to build your knowledge base',
       INTERMEDIATE: 'You\'re ready for intermediate courses that expand on basics',
       ADVANCED: 'Challenge yourself with advanced topics and specialized content',

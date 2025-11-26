@@ -179,7 +179,7 @@ class ContentSummarizationController {
    */
   async getUserLearningSummary(req: Request, res: Response) {
     try {
-      const userId = req.user?.userId
+      const userId = req.user?.id
 
       if (!userId) {
         return res.status(401).json({

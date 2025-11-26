@@ -1,11 +1,11 @@
 import { Router } from 'express'
 import contentSummarizationController from '../controllers/contentSummarizationController'
-import { authenticateToken } from '../middleware/auth'
+import { authenticate } from '../middleware/auth'
 
 const router = Router()
 
 // All routes require authentication
-router.use(authenticateToken)
+router.use(authenticate)
 
 /**
  * @route   POST /api/summarize/text

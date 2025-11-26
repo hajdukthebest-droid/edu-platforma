@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import translationController from '../controllers/translationController'
-import { authenticateToken } from '../middleware/auth'
+import { authenticate } from '../middleware/auth'
 
 const router = Router()
 
@@ -27,7 +27,7 @@ router.get('/status/:courseId', translationController.getTranslationStatus)
 router.get('/check/:type/:id/:locale', translationController.checkTranslationExists)
 
 // Protected routes - require authentication (instructor/admin only)
-router.use(authenticateToken)
+router.use(authenticate)
 
 /**
  * @route   POST /api/translations/course
